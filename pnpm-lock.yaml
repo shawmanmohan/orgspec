@@ -131,6 +131,9 @@ importers:
       '@orgspec/core':
         specifier: workspace:*
         version: link:../core
+      '@orgspec/integrations':
+        specifier: workspace:*
+        version: link:../integrations
       zod:
         specifier: 3.25.76
         version: 3.25.76
