@@ -99,8 +99,16 @@ export async function createPacket(ctx: AppContext, o: PacketOptions): Promise<P
     const [owner = '', name = slug] = slug.split('/');
     const prior = existing?.repos.find((r) => r.slug === slug);
     if (prior && existsSync(prior.path)) {
-      repos.push(prior);
-      continue;
+      const healthy = await ctx.git.head(prior.path).then(
+        () => true,
+        () => false,
+      );
+      if (healthy) {
+        repos.push(prior);
+        continue;
+      }
+      warnings.push(`The worktree for ${slug} was broken; recreated it`);
+      rmSync(prior.path, { recursive: true, force: true });
     }
     const account = await ensureAccount(ctx.gh, ctx.settings.github, { host: cfg.host, owner }).catch((e: Error) => {
       warnings.push(`gh account check failed for ${slug}: ${e.message}`);

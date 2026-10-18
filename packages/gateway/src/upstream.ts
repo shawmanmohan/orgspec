@@ -167,3 +167,42 @@ export function memoryConnector(
     };
   };
 }
+
+/**
+ * Interactive sign-in for an HTTP upstream (`orgspec connect <server>`): opens the browser, waits for
+ * the redirect on 127.0.0.1, stores tokens in the keychain and returns the server's tool count.
+ */
+export async function authorizeServer(
+  store: KeyStore,
+  name: string,
+  config: Upstream,
+  open: (url: URL) => void | Promise<void>,
+  waitForCode: () => Promise<string>,
+): Promise<number> {
+  if (config.transport !== 'http' || !config.url)
+    throw new Error(`${name} does not use OAuth (stdio servers use their own credentials)`);
+  const { UnauthorizedError } = await import('@modelcontextprotocol/sdk/client/auth.js');
+  const provider = new KeychainOAuthProvider(store, name, {
+    ...(config.oauth?.clientId ? { clientId: config.oauth.clientId } : {}),
+    scopes: config.oauth?.scopes ?? [],
+    onAuthorize: open,
+  });
+  const attempt = async () => {
+    const transport = new StreamableHTTPClientTransport(new URL(config.url as string), { authProvider: provider });
+    const client = new Client({ name: 'orgspec-connect', version: '0.1.0' });
+    return { transport, client, connect: () => client.connect(transport) };
+  };
+  let a = await attempt();
+  try {
+    await a.connect();
+  } catch (e) {
+    if (!(e instanceof UnauthorizedError)) throw e;
+    const code = await waitForCode();
+    await a.transport.finishAuth(code);
+    a = await attempt();
+    await a.connect();
+  }
+  const { tools } = await a.client.listTools();
+  await a.client.close();
+  return tools.length;
+}

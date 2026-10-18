@@ -42,13 +42,16 @@ function makeWorkspace(repoRoot: string): Workspace {
   };
 }
 
-/** Finds the nearest ancestor of `cwd` that contains an `orgspec/` folder. */
+/**
+ * Finds the nearest ancestor of `cwd` with an initialised `orgspec/` folder (one holding repo.yaml).
+ * The search stops at a git repository root, so a worktree never resolves to a folder above it.
+ */
 export function findWorkspace(cwd: string): Workspace {
   let dir = resolve(cwd);
   for (;;) {
-    if (isDir(join(dir, ORGSPEC_DIR))) return makeWorkspace(dir);
+    if (exists(join(dir, ORGSPEC_DIR, 'repo.yaml'))) return makeWorkspace(dir);
     const parent = dirname(dir);
-    if (parent === dir) {
+    if (parent === dir || exists(join(dir, '.git'))) {
       throw new OrgSpecError([
         error('no_orgspec_root', `No ${ORGSPEC_DIR}/ folder found from ${cwd}`, {
           fix: 'Run "orgspec init" in the repository root',

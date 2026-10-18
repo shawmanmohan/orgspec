@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import type { AppContext } from '@orgspec/app';
 import {
   applyStrict,
   archiveChange,
@@ -25,6 +26,7 @@ import {
   type Workspace,
 } from '@orgspec/spec-engine';
 import { Command, CommanderError, Option } from 'commander';
+import { registerAppCommands } from './commands.js';
 import { formatDiagnostics, summary } from './format.js';
 
 export interface IO {
@@ -35,8 +37,29 @@ export interface IO {
 
 export const VERSION = '0.1.0';
 
-export async function run(argv: readonly string[], io: IO): Promise<number> {
+export interface RunDeps {
+  /** Builds the app context (tests inject fakes for claude, gh and MCP). */
+  context?: () => AppContext;
+  /** Waits until a long-running command should stop; defaults to SIGINT/SIGTERM. */
+  wait?: () => Promise<void>;
+}
+
+const waitForSignal = () =>
+  new Promise<void>((resolve) => {
+    process.once('SIGINT', () => resolve());
+    process.once('SIGTERM', () => resolve());
+  });
+
+export async function run(argv: readonly string[], io: IO, deps: RunDeps = {}): Promise<number> {
   let exitCode = 0;
+  let ctx: AppContext | undefined;
+  const context = (): AppContext => {
+    if (!ctx) {
+      if (deps.context) ctx = deps.context();
+      else throw new Error('internal: context factory missing');
+    }
+    return ctx;
+  };
   const program = new Command('orgspec')
     .description('Spec-driven development that follows your organisation’s constitution')
     .version(VERSION)
@@ -321,6 +344,21 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
       );
     });
 
+  registerAppCommands(program, {
+    io,
+    opts,
+    workspace,
+    emit,
+    context,
+    keepAlive: async (close) => {
+      await (deps.wait ?? waitForSignal)();
+      await close();
+    },
+    setExit: (code) => {
+      exitCode = code;
+    },
+  });
+
   try {
     await program.parseAsync([...argv], { from: 'user' });
   } catch (e) {
@@ -329,7 +367,10 @@ export async function run(argv: readonly string[], io: IO): Promise<number> {
       emit({}, () => '', e.diagnostics);
       return 1;
     }
-    throw e;
+    emit({}, () => '', [{ severity: 'error', code: 'command_failed', message: (e as Error).message }]);
+    return 1;
+  } finally {
+    await ctx?.close();
   }
   return exitCode;
 }

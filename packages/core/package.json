@@ -13,6 +13,10 @@
     "./glob": {
       "types": "./dist/glob.d.ts",
       "default": "./dist/glob.js"
+    },
+    "./paths": {
+      "types": "./dist/paths.d.ts",
+      "default": "./dist/paths.js"
     }
   },
   "dependencies": {
