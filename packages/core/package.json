@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./glob": {
+      "types": "./dist/glob.d.ts",
+      "default": "./dist/glob.js"
     }
   },
   "dependencies": {

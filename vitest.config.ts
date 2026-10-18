@@ -6,6 +6,8 @@ const pkg = (name: string) => fileURLToPath(new URL(`./packages/${name}/src/inde
 export default defineConfig({
   resolve: {
     alias: {
+      '@orgspec/core/glob': fileURLToPath(new URL('./packages/core/src/glob.ts', import.meta.url)),
+      '@orgspec/constitution/hook': fileURLToPath(new URL('./packages/constitution/src/hook.ts', import.meta.url)),
       '@orgspec/spec-engine': pkg('spec-engine'),
       '@orgspec/core': pkg('core'),
       '@orgspec/constitution': pkg('constitution'),

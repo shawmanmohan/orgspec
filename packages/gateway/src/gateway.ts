@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { appendAudit, type Db, type McpGrant, matchesAny, nowIso } from '@orgspec/core';
@@ -305,6 +306,11 @@ export class Gateway {
 
   async connect(transport: Transport): Promise<void> {
     await this.server.connect(transport);
+  }
+
+  /** Serves over stdin/stdout (how Claude Code starts the gateway). */
+  async connectStdio(): Promise<void> {
+    await this.server.connect(new StdioServerTransport());
   }
 
   async close(): Promise<void> {
