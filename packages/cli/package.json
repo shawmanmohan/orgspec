@@ -8,6 +8,12 @@
   },
   "dependencies": {
     "@orgspec/spec-engine": "workspace:*",
-    "commander": "13.1.0"
+    "commander": "13.1.0",
+    "@orgspec/core": "workspace:*",
+    "@orgspec/constitution": "workspace:*",
+    "@orgspec/claude": "workspace:*",
+    "@orgspec/gateway": "workspace:*",
+    "@orgspec/integrations": "workspace:*",
+    "@orgspec/app": "workspace:*"
   }
 }

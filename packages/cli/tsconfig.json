@@ -5,5 +5,27 @@
     "outDir": "dist"
   },
   "include": ["src"],
-  "references": [{ "path": "../spec-engine" }]
+  "references": [
+    {
+      "path": "../spec-engine"
+    },
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../constitution"
+    },
+    {
+      "path": "../claude"
+    },
+    {
+      "path": "../gateway"
+    },
+    {
+      "path": "../integrations"
+    },
+    {
+      "path": "../app"
+    }
+  ]
 }

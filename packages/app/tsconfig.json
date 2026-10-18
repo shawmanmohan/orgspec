@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../spec-engine"
+    },
+    {
+      "path": "../constitution"
+    },
+    {
+      "path": "../claude"
+    },
+    {
+      "path": "../gateway"
+    },
+    {
+      "path": "../integrations"
+    }
+  ]
+}

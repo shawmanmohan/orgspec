@@ -1,0 +1,25 @@
+{
+  "name": "@orgspec/app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@orgspec/core": "workspace:*",
+    "@orgspec/spec-engine": "workspace:*",
+    "@orgspec/constitution": "workspace:*",
+    "@orgspec/claude": "workspace:*",
+    "@orgspec/gateway": "workspace:*",
+    "@orgspec/integrations": "workspace:*",
+    "fastify": "5.12.7",
+    "yaml": "2.9.1",
+    "zod": "3.25.76"
+  }
+}

@@ -45,7 +45,7 @@ export function changeStatus(change: LoadedChange): ChangeStatus | undefined {
   const byId = new Map(base.map((b) => [b.def.id, b]));
   const satisfied = (id: string): boolean => {
     const b = byId.get(id);
-    return !b || !b.required || b.skipped || b.files.length > 0;
+    return !b?.required || b.skipped || b.files.length > 0;
   };
 
   const artifacts: ArtifactStatus[] = base.map(({ def, files, required, skipped }) => {
