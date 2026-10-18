@@ -1,0 +1,14 @@
+[
+  {
+    "id": "pm.prd.metrics",
+    "question": "Does the PRD define measurable success metrics with targets?",
+    "severity": "blocking",
+    "statement": "Every PRD states measurable success metrics with targets."
+  },
+  {
+    "id": "pm.prd.non-goals",
+    "question": "Does the PRD list non-goals?",
+    "severity": "warning",
+    "statement": "Every PRD lists what is out of scope."
+  }
+]

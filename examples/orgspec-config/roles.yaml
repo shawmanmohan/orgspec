@@ -1,0 +1,6 @@
+# GitHub logins holding approval roles, used to verify approvals.yaml in CI.
+roles:
+  staff-engineer: [alice, carol]
+  security: [dave]
+teams:
+  payments: [alice, bob]

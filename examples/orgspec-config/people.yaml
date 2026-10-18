@@ -1,0 +1,6 @@
+# Identities across tools, keyed by work email. Used for 1:1s and nudges.
+people:
+  alice@acme.io: { github: alice, slack: U01ALICE, jiraAccountId: "5b10a2844c20165700ede21g" }
+  bob@acme.io: { github: bob, slack: U02BOB, jiraAccountId: "5b10ac8d82e05b22cc7d4ef5" }
+oneOnOne:
+  spaceId: "98765" # restricted Confluence space for 1:1 pages

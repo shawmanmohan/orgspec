@@ -1,0 +1,269 @@
+{
+  "persona": "engineer",
+  "version": "1.0.0",
+  "rules": [
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "eng.git.no-force-push",
+      "title": "No force pushes",
+      "statement": "Never force-push; add commits or open a new branch.",
+      "enforcement": "hook",
+      "severity": "blocking",
+      "check": {
+        "kind": "git-op",
+        "deny": [
+          "force-push"
+        ],
+        "ask": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      "source": {
+        "pageId": "100001",
+        "version": 1,
+        "quote": "Never force-push to a branch someone else may have pulled"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "eng.git.draft-prs",
+      "title": "Open pull requests as drafts",
+      "statement": "Open pull requests as drafts; a person marks them ready.",
+      "enforcement": "hook",
+      "severity": "warning",
+      "check": {
+        "kind": "git-op",
+        "deny": [],
+        "ask": [
+          "pr-ready"
+        ],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      "source": {
+        "pageId": "100001",
+        "version": 1,
+        "quote": "pull requests start as drafts"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "eng.ci.workflows-in-spec",
+      "title": "CI workflows change only with a spec",
+      "statement": "Change .github/workflows only when the change folder names the file.",
+      "enforcement": "hook",
+      "severity": "blocking",
+      "check": {
+        "kind": "file-scope",
+        "deny": [
+          ".github/workflows/**"
+        ],
+        "allowWhenNamedInSpec": true,
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      "source": {
+        "pageId": "100002",
+        "version": 1,
+        "quote": "Pipeline definitions change only through a reviewed change"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "eng.tier.migrations-high",
+      "title": "Migrations are high tier",
+      "statement": "Changes under db/migrations need a high-tier change.",
+      "enforcement": "ci",
+      "severity": "blocking",
+      "check": {
+        "kind": "path-rule",
+        "paths": [
+          "db/migrations/**"
+        ],
+        "minTier": "high"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": [
+          "db/migrations/**"
+        ]
+      },
+      "source": {
+        "pageId": "100002",
+        "version": 1,
+        "quote": "Schema migrations are always high risk"
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "eng.trace.scenarios",
+      "title": "Scenarios are tested",
+      "statement": "Every new or changed scenario is cited by a test at medium and high tier.",
+      "enforcement": "ci",
+      "severity": "blocking",
+      "check": {
+        "kind": "trace-coverage",
+        "tiers": [
+          "medium",
+          "high"
+        ]
+      },
+      "source": {
+        "pageId": "100001",
+        "version": 1,
+        "quote": "every behaviour change ships with a test"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "eng.design.approval",
+      "title": "High-tier designs need a staff engineer",
+      "statement": "A staff engineer approves design.md for high-tier changes.",
+      "enforcement": "ci",
+      "severity": "blocking",
+      "check": {
+        "kind": "approval",
+        "artifact": "design.md",
+        "role": "staff-engineer",
+        "count": 1
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      },
+      "source": {
+        "pageId": "100002",
+        "version": 1,
+        "quote": "High-risk designs are approved by a staff engineer"
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "eng.design.rollback",
+      "title": "Designs explain rollback",
+      "statement": "design.md says how to roll the change back.",
+      "enforcement": "review",
+      "severity": "warning",
+      "check": {
+        "kind": "rubric",
+        "artifact": "design",
+        "question": "Does the design explain how to roll the change back?"
+      },
+      "source": {
+        "pageId": "100002",
+        "version": 1,
+        "quote": "Describe how you would roll back"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "eng.secrets.none",
+      "title": "No secrets in code",
+      "statement": "Never commit credentials.",
+      "enforcement": "ci",
+      "severity": "blocking",
+      "check": {
+        "kind": "pattern-forbid",
+        "paths": [
+          "**/*.ts",
+          "**/*.js",
+          "**/*.py",
+          "**/*.go"
+        ],
+        "pattern": "(AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)"
+      },
+      "source": {
+        "pageId": "100001",
+        "version": 1,
+        "quote": "Credentials never go into source control"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    }
+  ]
+}

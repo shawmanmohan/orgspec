@@ -1,0 +1,25 @@
+{
+  "persona": "product-manager",
+  "version": "1.0.0",
+  "sha256": "sha256:271e18f2f06d2c1c456850e3da517be08aa958069e0bf4936111c25fda4ba3bb",
+  "files": {
+    "constitution.md": "sha256:e2f415d7486c1702e5477550a214e583a707388f9f66dacc00da76aed3078c71",
+    "rules.json": "sha256:b4bdd1eddb409d1515597ac7ba9200c818c1dee36d4e5a6db04c162f5ffdb0bd",
+    "checks.json": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "rubrics/prd.json": "sha256:ea7cb1e1fae8f6bd181cb8cb10178b432a9683b7d8e5474de5cf15bb1d5fc032"
+  },
+  "sources": [
+    {
+      "pageId": "300001",
+      "version": 1,
+      "title": "Page 300001",
+      "hash": "sha256:example"
+    }
+  ],
+  "compiler": {
+    "version": "example",
+    "model": "seed"
+  },
+  "builtAt": "2026-10-19T00:00:00.000Z",
+  "approvedBy": []
+}

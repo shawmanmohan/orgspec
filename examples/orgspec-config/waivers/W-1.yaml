@@ -1,0 +1,6 @@
+id: W-1
+rule: eng.tier.migrations-high
+scope: { repo: acme/legacy-billing, paths: ["db/migrations/**"] }
+reason: Legacy billing migrations are generated; reviewed by the DBA rota instead.
+approver: carol
+expires: "2026-12-31"

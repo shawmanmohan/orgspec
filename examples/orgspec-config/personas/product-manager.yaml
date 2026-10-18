@@ -1,0 +1,29 @@
+# Product managers: PRD reviews, program risk, nudges.
+apiVersion: orgspec/v1
+kind: Persona
+metadata:
+  id: product-manager
+  name: Product manager
+  version: 1.0.0
+  owners: [ pm-process-owners ]
+spec:
+  eligibility:
+    teams: []
+  constitution:
+    bundle: compiled/product-manager/1.0.0
+    sha256: "sha256:271e18f2f06d2c1c456850e3da517be08aa958069e0bf4936111c25fda4ba3bb"
+  mcp:
+    - server: atlassian
+      tools:
+        [
+          "getJiraIssue",
+          "searchJiraIssuesUsingJql",
+          "getConfluencePage",
+          "searchConfluenceUsingCql",
+          "createConfluencePage",
+          "updateConfluencePage"
+        ]
+      confirm: [ "createConfluencePage", "updateConfluencePage" ]
+    - server: slack
+      tools: [ "conversations_history", "conversations_replies", "chat_post_message" ]
+  views: [ prd-reviews, risk, inbox ]

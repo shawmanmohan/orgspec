@@ -1,0 +1,103 @@
+[
+  {
+    "id": "eng.git.no-force-push",
+    "enforcement": "hook",
+    "severity": "blocking",
+    "check": {
+      "kind": "git-op",
+      "deny": [
+        "force-push"
+      ],
+      "ask": [],
+      "tiers": [
+        "low",
+        "medium",
+        "high"
+      ]
+    }
+  },
+  {
+    "id": "eng.git.draft-prs",
+    "enforcement": "hook",
+    "severity": "warning",
+    "check": {
+      "kind": "git-op",
+      "deny": [],
+      "ask": [
+        "pr-ready"
+      ],
+      "tiers": [
+        "low",
+        "medium",
+        "high"
+      ]
+    }
+  },
+  {
+    "id": "eng.ci.workflows-in-spec",
+    "enforcement": "hook",
+    "severity": "blocking",
+    "check": {
+      "kind": "file-scope",
+      "deny": [
+        ".github/workflows/**"
+      ],
+      "allowWhenNamedInSpec": true,
+      "tiers": [
+        "low",
+        "medium",
+        "high"
+      ]
+    }
+  },
+  {
+    "id": "eng.tier.migrations-high",
+    "enforcement": "ci",
+    "severity": "blocking",
+    "check": {
+      "kind": "path-rule",
+      "paths": [
+        "db/migrations/**"
+      ],
+      "minTier": "high"
+    }
+  },
+  {
+    "id": "eng.trace.scenarios",
+    "enforcement": "ci",
+    "severity": "blocking",
+    "check": {
+      "kind": "trace-coverage",
+      "tiers": [
+        "medium",
+        "high"
+      ]
+    }
+  },
+  {
+    "id": "eng.design.approval",
+    "enforcement": "ci",
+    "severity": "blocking",
+    "check": {
+      "kind": "approval",
+      "artifact": "design.md",
+      "role": "staff-engineer",
+      "count": 1
+    }
+  },
+  {
+    "id": "eng.secrets.none",
+    "enforcement": "ci",
+    "severity": "blocking",
+    "check": {
+      "kind": "pattern-forbid",
+      "paths": [
+        "**/*.ts",
+        "**/*.js",
+        "**/*.py",
+        "**/*.go"
+      ],
+      "pattern": "(AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)"
+    }
+  }
+]

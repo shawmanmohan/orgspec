@@ -1,0 +1,7 @@
+# Golden cases run by `orgspec admin eval` before a bundle is published.
+- { name: force push is denied, persona: engineer, bash: "git push --force origin feature", expect: deny, rule: eng.git.no-force-push }
+- { name: push to main is denied, persona: engineer, bash: "git push origin main", expect: deny }
+- { name: ready PR asks first, persona: engineer, bash: "gh pr create --fill", expect: ask, rule: eng.git.draft-prs }
+- { name: draft PR is fine, persona: engineer, bash: "gh pr create --draft --fill", expect: allow }
+- { name: workflows need the spec, persona: engineer, write: { path: .github/workflows/ci.yml }, expect: deny, rule: eng.ci.workflows-in-spec }
+- { name: workflows named in the spec, persona: engineer, write: { path: .github/workflows/ci.yml, namedInSpec: "update .github/workflows/ci.yml" }, expect: allow }

@@ -1,0 +1,10 @@
+# Jira fields OrgSpec keeps current. The gates themselves are your Jira workflow conditions.
+gates:
+  spec: customfield_10420
+  design: customfield_10421
+  approvals: customfield_10422
+  trace: customfield_10423
+  ci: customfield_10424
+  tier: customfield_10425
+  change: customfield_10426
+prdReview: customfield_10430

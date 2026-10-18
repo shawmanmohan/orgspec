@@ -1,0 +1,9 @@
+# Payments may tighten base rules (never loosen them) and add its own.
+apiVersion: orgspec/v1
+kind: ConstitutionOverlay
+metadata: { id: team-payments, version: 1.0.0, owners: [payments-leads] }
+spec:
+  layer: team
+  scope: payments
+  sources:
+    - confluence: { space: PAY, title: "Payments engineering standards", pageId: "200001" }

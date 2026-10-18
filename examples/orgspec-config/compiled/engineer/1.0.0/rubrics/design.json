@@ -1,0 +1,8 @@
+[
+  {
+    "id": "eng.design.rollback",
+    "question": "Does the design explain how to roll the change back?",
+    "severity": "warning",
+    "statement": "design.md says how to roll the change back."
+  }
+]

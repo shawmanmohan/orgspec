@@ -1,0 +1,10 @@
+# Organisation-wide rules. Every rule the compiler extracts must quote one of these pages verbatim.
+apiVersion: orgspec/v1
+kind: ConstitutionOverlay
+metadata: { id: base, version: 1.0.0, owners: [eng-process-owners] }
+spec:
+  layer: base
+  sources:
+    - confluence: { space: ENG, title: "Engineering handbook", pageId: "100001" }
+    - confluence: { space: ENG, title: "Change management", pageId: "100002" }
+  budget: { maxRules: 60, maxTokens: 6000 }

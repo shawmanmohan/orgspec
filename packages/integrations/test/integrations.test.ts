@@ -21,6 +21,7 @@ function stubCaller(
 
 describe('operation templates', () => {
   it('fills variables and drops missing ones', () => {
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: testing the template syntax itself
     expect(fillTemplate({ a: '$x', b: '$missing', c: 'id-${x}', d: ['$x', '$nope'] }, { x: 1 })).toEqual({
       a: 1,
       c: 'id-1',

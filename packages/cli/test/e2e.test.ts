@@ -173,6 +173,7 @@ describe('orgspec end to end', () => {
         code,
         json: () => {
           try {
+            // biome-ignore lint/suspicious/noExplicitAny: test reads loosely shaped JSON reports
             return JSON.parse(out) as Record<string, any>;
           } catch {
             throw new Error(`not JSON from ${args.join(' ')}: ${out.slice(0, 400)}`);

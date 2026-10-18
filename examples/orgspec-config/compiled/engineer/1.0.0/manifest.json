@@ -1,0 +1,31 @@
+{
+  "persona": "engineer",
+  "version": "1.0.0",
+  "sha256": "sha256:cc7c918f915c55034e70c664ea0f767a7b4a97a638797e71eacef6462c0be2f5",
+  "files": {
+    "constitution.md": "sha256:2c250f3227edf381ed167c4ed4c5bfa2b1b1c322a8acd50726aaaa91559b0c97",
+    "rules.json": "sha256:db880c1c5ef6130da9a47fe80b525f802c3b7a4cc5cdfe158e1753c152c3bd65",
+    "checks.json": "sha256:c813ead630560be59711254514106b2731ccda819a00bd6bda55e64dafe76208",
+    "rubrics/design.json": "sha256:d1f819799f33e11bc73732e2782ff63a7b072a5c2d142b48ae32bc95d629a2ca"
+  },
+  "sources": [
+    {
+      "pageId": "100001",
+      "version": 1,
+      "title": "Page 100001",
+      "hash": "sha256:example"
+    },
+    {
+      "pageId": "100002",
+      "version": 1,
+      "title": "Page 100002",
+      "hash": "sha256:example"
+    }
+  ],
+  "compiler": {
+    "version": "example",
+    "model": "seed"
+  },
+  "builtAt": "2026-10-19T00:00:00.000Z",
+  "approvedBy": []
+}

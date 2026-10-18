@@ -1,0 +1,34 @@
+# Engineers working on product repositories.
+apiVersion: orgspec/v1
+kind: Persona
+metadata:
+  id: engineer
+  name: Engineer
+  version: 1.0.0
+  owners: [ eng-process-owners ]
+spec:
+  eligibility:
+    teams: [] # empty: everyone may pick this persona; for example [acme/engineering]
+  constitution:
+    bundle: compiled/engineer/1.0.0
+    sha256: "sha256:cc7c918f915c55034e70c664ea0f767a7b4a97a638797e71eacef6462c0be2f5"
+  agents:
+    - id: orgspec-engineer
+      model: sonnet
+  mcp:
+    - server: atlassian
+      tools:
+        [
+          "getJiraIssue",
+          "searchJiraIssuesUsingJql",
+          "getConfluencePage",
+          "searchConfluenceUsingCql",
+          "addCommentToJiraIssue"
+        ]
+      confirm: [ "addCommentToJiraIssue" ]
+    - server: ci
+      tools: [ "list_runs", "get_run", "get_run_logs" ]
+  github:
+    gh: [ pr, api, repo ]
+  views: [ my-work, reviews, decisions ]
+  reminders: [ ci-failed, approvals ]

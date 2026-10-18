@@ -1,0 +1,8 @@
+# Polling intervals. People may set their own (within min..max) where personal is true.
+workingHours: { start: "09:00", end: "18:00", days: [1, 2, 3, 4, 5] }
+sources:
+  jira.active: { every: 2m, min: 1m, max: 15m, offHours: slow, offHoursEvery: 15m, personal: true }
+  github.prs: { every: 2m, min: 1m, max: 15m, offHours: slow, offHoursEvery: 15m, personal: true }
+  ci.runs: { every: 2m, min: 1m, max: 15m, offHours: slow, offHoursEvery: 15m, personal: true }
+  slack.dms: { every: 5m, min: 2m, max: 30m, offHours: pause, offHoursEvery: 30m, personal: true }
+  confluence.sources: { every: 15m, min: 5m, max: 24h, offHours: slow, offHoursEvery: 60m }

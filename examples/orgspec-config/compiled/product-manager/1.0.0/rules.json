@@ -1,0 +1,64 @@
+{
+  "persona": "product-manager",
+  "version": "1.0.0",
+  "rules": [
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "pm.prd.metrics",
+      "title": "PRDs define success metrics",
+      "statement": "Every PRD states measurable success metrics with targets.",
+      "enforcement": "review",
+      "severity": "blocking",
+      "check": {
+        "kind": "rubric",
+        "artifact": "prd",
+        "question": "Does the PRD define measurable success metrics with targets?"
+      },
+      "source": {
+        "pageId": "300001",
+        "version": 1,
+        "quote": "State how you will measure success"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "pm.prd.non-goals",
+      "title": "PRDs list non-goals",
+      "statement": "Every PRD lists what is out of scope.",
+      "enforcement": "review",
+      "severity": "warning",
+      "check": {
+        "kind": "rubric",
+        "artifact": "prd",
+        "question": "Does the PRD list non-goals?"
+      },
+      "source": {
+        "pageId": "300001",
+        "version": 1,
+        "quote": "List what you are not doing"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    }
+  ]
+}

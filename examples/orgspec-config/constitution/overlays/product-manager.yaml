@@ -1,0 +1,7 @@
+apiVersion: orgspec/v1
+kind: ConstitutionOverlay
+metadata: { id: product-manager, version: 1.0.0, owners: [pm-process-owners] }
+spec:
+  layer: persona
+  sources:
+    - confluence: { space: PM, title: "How we write PRDs", pageId: "300001" }
