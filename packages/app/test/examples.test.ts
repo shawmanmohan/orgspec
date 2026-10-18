@@ -1,4 +1,3 @@
-import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadOrgConfig } from '@orgspec/core';
 import { PolicyEngine } from '@orgspec/gateway';
