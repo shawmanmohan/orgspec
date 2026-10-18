@@ -350,8 +350,11 @@ export async function run(argv: readonly string[], io: IO, deps: RunDeps = {}): 
     workspace,
     emit,
     context,
-    keepAlive: async (close) => {
-      await (deps.wait ?? waitForSignal)();
+    keepAlive: async (close, o) => {
+      const waits = [(deps.wait ?? waitForSignal)()];
+      if (o?.untilStdinEnds && !deps.wait)
+        waits.push(new Promise<void>((resolve) => process.stdin.once('end', () => resolve())));
+      await Promise.race(waits);
       await close();
     },
     setExit: (code) => {

@@ -64,7 +64,7 @@ export interface CommandHelpers {
   emit: (payload: Record<string, unknown>, human: () => string, diagnostics?: readonly Diagnostic[]) => void;
   context: () => AppContext;
   /** Long-running commands (daemon, gateway) keep the process alive. */
-  keepAlive: (close: () => Promise<void>) => Promise<void>;
+  keepAlive: (close: () => Promise<void>, o?: { untilStdinEnds?: boolean }) => Promise<void>;
   setExit: (code: number) => void;
 }
 
@@ -158,7 +158,7 @@ export function registerAppCommands(program: Command, h: CommandHelpers): void {
     .option('--session <id>')
     .action(async (o: { session?: string }) => {
       const gw = await runGateway(ctx(), { ...(o.session ? { session: o.session } : {}), cwd: h.opts().cwd });
-      await h.keepAlive(() => gw.close());
+      await h.keepAlive(() => gw.close(), { untilStdinEnds: true });
     });
 
   program

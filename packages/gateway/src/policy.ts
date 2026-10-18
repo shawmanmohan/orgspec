@@ -1,6 +1,6 @@
-import { createRequire } from 'node:module';
 import type { McpGrant } from '@orgspec/core';
 import { matchesAny } from '@orgspec/core';
+import { loadCedarModule } from './cedar-load.js';
 
 type CedarValue =
   | boolean
@@ -34,7 +34,7 @@ interface Cedar {
 
 let cedar: Cedar | undefined;
 const loadCedar = (): Cedar => {
-  cedar ??= createRequire(import.meta.url)('@cedar-policy/cedar-wasm/nodejs') as Cedar;
+  cedar ??= loadCedarModule() as Cedar;
   return cedar;
 };
 
