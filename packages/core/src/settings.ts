@@ -9,7 +9,7 @@ export const UserSettingsSchema = z.object({
   configRepo: z.string().optional(),
   /** `owner/repo` of orgspec-config, used to clone and pull with gh. */
   configRemote: z.string().optional(),
-  workRoot: z.string().default('~/OrgSpec/tickets'),
+  workRoot: z.string().default('~/orgspec-tickets'),
   persona: z.string().optional(),
   identity: z
     .object({

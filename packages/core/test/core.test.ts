@@ -120,7 +120,7 @@ spec:
 describe('settings', () => {
   it('fills defaults and persists updates', () => {
     const file = join(temp(), 'settings.json');
-    expect(loadSettings(file).workRoot).toBe('~/OrgSpec/tickets');
+    expect(loadSettings(file).workRoot).toBe('~/orgspec-tickets');
     updateSettings(file, (s) => ({ ...s, github: { ...s.github, orgAccounts: { 'github.com/acme': 'asha-work' } } }));
     expect(loadSettings(file).github.orgAccounts).toEqual({ 'github.com/acme': 'asha-work' });
   });
