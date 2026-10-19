@@ -11,7 +11,7 @@ spec:
     teams: [] # for example [acme/engineering-managers]
   constitution:
     bundle: compiled/engineering-manager/1.0.0
-    sha256: "sha256:fb930b5cdab3b2483cd78b279020a0ca62e39a07e88343bdb29a88432edb1dcf"
+    sha256: "sha256:e18e8e25c1a3ee54ca09c829c390c20076048ed9566c1dbafc8bde5b184e769b"
   mcp:
     - server: atlassian
       tools:

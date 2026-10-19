@@ -157,6 +157,7 @@ export const DEFAULT_OPERATIONS: Record<string, ToolMapping> = {
     tool: 'slack__chat_post_message',
     args: { channel: '$channel', text: '$text', thread_ts: '$threadTs' },
   },
+  'slack.saved': { tool: 'slack__saved_list', args: {} },
   'slack.userInfo': { tool: 'slack__users_info', args: { user: '$user' } },
   'ci.listRuns': {
     tool: 'ci__list_runs',

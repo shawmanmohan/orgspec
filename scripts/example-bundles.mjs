@@ -26,6 +26,11 @@ const pm = [
 ];
 
 const em = [
+  ...pm,
+  { id: 'eng.design.rollback', title: 'Designs explain rollback', statement: 'design.md says how to roll the change back.', enforcement: 'review', severity: 'warning', check: { kind: 'rubric', artifact: 'design', question: 'Does the design explain how to roll the change back?' }, source: src('100002', 'Describe how you would roll back') },
+  { id: 'prd.nfr.latency', title: 'PRDs state latency targets', statement: 'User-facing lookups state a p95 latency target per region.', enforcement: 'review', severity: 'warning', check: { kind: 'rubric', artifact: 'prd', question: 'Does the PRD state measurable latency targets for user-facing operations?' }, source: src('300001', 'State latency targets for anything a user waits on') },
+  { id: 'prd.rollout.plan', title: 'PRDs plan rollout and rollback', statement: 'Every PRD orders its rollout and says how to roll back.', enforcement: 'review', severity: 'warning', check: { kind: 'rubric', artifact: 'prd', question: 'Does the rollout say the order of steps and how to roll back?' }, source: src('300001', 'Say how you will roll out and how you would roll back') },
+  { id: 'prd.review.sla', title: 'PRD reviews within 5 working days', statement: 'Reviewers respond to a PRD within 5 working days.', enforcement: 'advisory', severity: 'warning', source: src('300001', 'Reviewers respond within five working days') },
   { id: 'em.oneonone.not-evaluation', title: '1:1 briefs are preparation aids', statement: 'Use 1:1 briefs to prepare conversations, never as performance evidence or for pay and promotion decisions.', enforcement: 'advisory', severity: 'warning', source: src('400001', 'Briefs prepare a conversation; they are never performance evidence') },
   { id: 'em.oneonone.shared-evidence', title: 'Reports see the same evidence', statement: 'Share brief sources with the report and invite their context before the 1:1.', enforcement: 'advisory', severity: 'warning', source: src('400001', 'the report sees the same evidence') },
   { id: 'em.review.design-approval', title: 'Design approvals need a staff engineer', statement: 'Managers do not approve high-tier designs on behalf of a staff engineer.', enforcement: 'advisory', severity: 'warning', source: src('100002', 'High-risk designs are approved by a staff engineer') },

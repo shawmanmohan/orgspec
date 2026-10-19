@@ -5,6 +5,175 @@
     {
       "rationale": "",
       "layer": "base",
+      "id": "pm.prd.metrics",
+      "title": "PRDs define success metrics",
+      "statement": "Every PRD states measurable success metrics with targets.",
+      "enforcement": "review",
+      "severity": "blocking",
+      "check": {
+        "kind": "rubric",
+        "artifact": "prd",
+        "question": "Does the PRD define measurable success metrics with targets?"
+      },
+      "source": {
+        "pageId": "300001",
+        "version": 1,
+        "quote": "State how you will measure success"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "pm.prd.non-goals",
+      "title": "PRDs list non-goals",
+      "statement": "Every PRD lists what is out of scope.",
+      "enforcement": "review",
+      "severity": "warning",
+      "check": {
+        "kind": "rubric",
+        "artifact": "prd",
+        "question": "Does the PRD list non-goals?"
+      },
+      "source": {
+        "pageId": "300001",
+        "version": 1,
+        "quote": "List what you are not doing"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "eng.design.rollback",
+      "title": "Designs explain rollback",
+      "statement": "design.md says how to roll the change back.",
+      "enforcement": "review",
+      "severity": "warning",
+      "check": {
+        "kind": "rubric",
+        "artifact": "design",
+        "question": "Does the design explain how to roll the change back?"
+      },
+      "source": {
+        "pageId": "100002",
+        "version": 1,
+        "quote": "Describe how you would roll back"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "prd.nfr.latency",
+      "title": "PRDs state latency targets",
+      "statement": "User-facing lookups state a p95 latency target per region.",
+      "enforcement": "review",
+      "severity": "warning",
+      "check": {
+        "kind": "rubric",
+        "artifact": "prd",
+        "question": "Does the PRD state measurable latency targets for user-facing operations?"
+      },
+      "source": {
+        "pageId": "300001",
+        "version": 1,
+        "quote": "State latency targets for anything a user waits on"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "prd.rollout.plan",
+      "title": "PRDs plan rollout and rollback",
+      "statement": "Every PRD orders its rollout and says how to roll back.",
+      "enforcement": "review",
+      "severity": "warning",
+      "check": {
+        "kind": "rubric",
+        "artifact": "prd",
+        "question": "Does the rollout say the order of steps and how to roll back?"
+      },
+      "source": {
+        "pageId": "300001",
+        "version": 1,
+        "quote": "Say how you will roll out and how you would roll back"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "prd.review.sla",
+      "title": "PRD reviews within 5 working days",
+      "statement": "Reviewers respond to a PRD within 5 working days.",
+      "enforcement": "advisory",
+      "severity": "warning",
+      "source": {
+        "pageId": "300001",
+        "version": 1,
+        "quote": "Reviewers respond within five working days"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
       "id": "em.oneonone.not-evaluation",
       "title": "1:1 briefs are preparation aids",
       "statement": "Use 1:1 briefs to prepare conversations, never as performance evidence or for pay and promotion decisions.",

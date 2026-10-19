@@ -1,0 +1,26 @@
+[
+  {
+    "id": "pm.prd.metrics",
+    "question": "Does the PRD define measurable success metrics with targets?",
+    "severity": "blocking",
+    "statement": "Every PRD states measurable success metrics with targets."
+  },
+  {
+    "id": "pm.prd.non-goals",
+    "question": "Does the PRD list non-goals?",
+    "severity": "warning",
+    "statement": "Every PRD lists what is out of scope."
+  },
+  {
+    "id": "prd.nfr.latency",
+    "question": "Does the PRD state measurable latency targets for user-facing operations?",
+    "severity": "warning",
+    "statement": "User-facing lookups state a p95 latency target per region."
+  },
+  {
+    "id": "prd.rollout.plan",
+    "question": "Does the rollout say the order of steps and how to roll back?",
+    "severity": "warning",
+    "statement": "Every PRD orders its rollout and says how to roll back."
+  }
+]

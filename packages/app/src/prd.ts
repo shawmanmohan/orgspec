@@ -141,8 +141,8 @@ ${rubric.map((r) => `- ${r.id}: ${r.question}`).join('\n')}`,
     .db()
     .prepare('insert or replace into cache_confluence_pages (page_id, title, version, fetched_at) values (?, ?, ?, ?)')
     .run(pageId, page.title, page.version, nowIso());
-  if (!kv(ctx).get(`prd:seen:${pageId}`))
-    ctx.db().prepare('insert or replace into kv (key, value) values (?, ?)').run(`prd:seen:${pageId}`, nowIso());
+  // prd:seen holds a plain ISO date (when the PRD first entered review), not JSON.
+  ctx.db().prepare('insert or ignore into kv (key, value) values (?, ?)').run(`prd:seen:${pageId}`, nowIso());
   return review;
 }
 

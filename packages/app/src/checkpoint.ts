@@ -98,10 +98,9 @@ export async function checkpointHook(event: string, reason: string, input: HookI
     };
   }
   writeCheckpoint(folder, reason);
-  if (event === 'session-end') {
-    const s = readSession(folder);
-    writeSession({ ...s, state: 'ended', ...(input.session_id ? { claudeSessionId: input.session_id } : {}) });
-  } else if (input.session_id) {
+  // One Claude session ending never ends the ticket: other sessions may still be working in the
+  // folder, and the person can resume. Only `orgspec cleanup` retires a ticket folder.
+  if (input.session_id) {
     const s = readSession(folder);
     if (s.claudeSessionId !== input.session_id) writeSession({ ...s, claudeSessionId: input.session_id });
   }

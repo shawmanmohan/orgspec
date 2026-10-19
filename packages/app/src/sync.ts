@@ -116,6 +116,7 @@ export function syncJobs(ctx: AppContext): Record<string, SyncJob> {
       const db = ctx.db();
       const auto = ctx.persona()?.spec.views.includes('review-queue') ?? false;
       let reviewed = 0;
+      const failed: string[] = [];
       for (const p of pages) {
         const prev = db.prepare('select version from cache_confluence_pages where page_id = ?').get(p.id) as
           | { version: number | null }
@@ -124,22 +125,29 @@ export function syncJobs(ctx: AppContext): Record<string, SyncJob> {
           `prd:seen:${p.id}`,
           new Date().toISOString(),
         );
-        db.prepare(
-          'insert or replace into cache_confluence_pages (page_id, title, version, fetched_at) values (?, ?, ?, ?)',
-        ).run(p.id, p.title, p.version ?? null, new Date().toISOString());
         if (prev && p.version !== undefined && prev.version === p.version) continue;
         if (auto) {
-          await reviewPrdFull(ctx, p.id);
-          reviewed++;
-        } else
+          try {
+            // reviewPrdFull records the page version only after the review succeeds, so failures retry.
+            await reviewPrdFull(ctx, p.id);
+            reviewed++;
+          } catch (e) {
+            failed.push(`${p.title}: ${(e as Error).message}`);
+          }
+        } else {
+          db.prepare(
+            'insert or replace into cache_confluence_pages (page_id, title, version, fetched_at) values (?, ?, ?, ?)',
+          ).run(p.id, p.title, p.version ?? null, new Date().toISOString());
           remind(ctx, {
             kind: 'prd-review',
             subject: p.id,
             title: `PRD “${p.title}” is ready for review`,
             url: `/reviews/prd/${p.id}`,
           });
+        }
       }
-      return `${pages.length} PRD page(s), ${reviewed} reviewed`;
+      if (failed.length && !reviewed) throw new Error(failed.join('; '));
+      return `${pages.length} PRD page(s), ${reviewed} reviewed${failed.length ? `; ${failed.length} failed: ${failed[0]}` : ''}`;
     },
     'slack.dms': async () => {
       const r = await syncDmInbox(ctx);
