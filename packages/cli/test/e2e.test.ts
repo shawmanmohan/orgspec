@@ -208,7 +208,9 @@ describe('orgspec end to end', () => {
     expect(existsSync(join(wt, 'README.md'))).toBe(true);
     expect(git(wt, 'rev-parse', '--abbrev-ref', 'HEAD')).toBe('pay-9');
     expect(readFileSync(join(folder, 'packet.md'), 'utf8')).toContain('PAY-9: Add ledger index');
-    expect(JSON.parse(readFileSync(join(folder, '.mcp.json'), 'utf8')).mcpServers.orgspec.args[0]).toBe('gateway');
+    expect(JSON.parse(readFileSync(join(folder, '.orgspec/mcp.json'), 'utf8')).mcpServers.orgspec.args[0]).toBe(
+      'gateway',
+    );
     expect(existsSync(join(folder, '.claude/agents/orgspec-engineer.md'))).toBe(true);
     expect(p.json().warnings.join(' ')).toContain('alice-work');
 

@@ -100,10 +100,13 @@ export function writeClaudeFolder(o: ClaudeFolderOptions): string[] {
   const mcpTools = grantedMcpTools(o.persona);
   for (const a of agentsFor(o.persona)) put(`.claude/agents/${a.id}.md`, renderAgent(a, { mcpTools }));
   for (const [f, text] of Object.entries(renderClaudeRules(o.rules, o.bundle))) put(`.claude/rules/${f}`, text);
-  put('.mcp.json', `${JSON.stringify(mcpConfig(o.sessionId, o.orgspecBin), null, 2)}\n`);
+  put(GATEWAY_CONFIG, `${JSON.stringify(mcpConfig(o.sessionId, o.orgspecBin), null, 2)}\n`);
   put('.claude/settings.json', `${JSON.stringify(projectSettings(o.orgspecBin), null, 2)}\n`);
   return written;
 }
+
+/** Where a ticket folder keeps its gateway entry; sessions load it with --mcp-config. */
+export const GATEWAY_CONFIG = '.orgspec/mcp.json';
 
 export const mcpConfig = (sessionId: string, bin = 'orgspec') => ({
   mcpServers: { orgspec: { command: bin, args: ['gateway', '--stdio', '--session', sessionId] } },
@@ -166,8 +169,6 @@ export function projectSettings(orgspecBin = 'orgspec') {
   return {
     hooks: m.hooks,
     permissions: { deny: m.permissions.deny },
-    enabledMcpjsonServers: ['orgspec'],
-    enableAllProjectMcpServers: false,
   };
 }
 

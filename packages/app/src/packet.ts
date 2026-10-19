@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { cpSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { interactiveCommand, openTerminal, selfCommand, writeClaudeFolder } from '@orgspec/claude';
+import { GATEWAY_CONFIG, interactiveCommand, openTerminal, selfCommand, writeClaudeFolder } from '@orgspec/claude';
 import { exists, writeFileAtomic } from '@orgspec/core';
 import { ensureAccount, type JiraIssue, remoteOwner } from '@orgspec/integrations';
 import { findWorkspace, listChangeIds, loadChange } from '@orgspec/spec-engine';
@@ -197,6 +197,7 @@ export async function createPacket(ctx: AppContext, o: PacketOptions): Promise<P
         agent: 'orgspec-engineer',
         prompt,
         name: o.ticket,
+        mcpConfig: join(folder, GATEWAY_CONFIG),
       });
       writeSession({ ...session, claudeSessionId: packet.claudeSession });
     } catch (e) {
@@ -210,7 +211,7 @@ export async function createPacket(ctx: AppContext, o: PacketOptions): Promise<P
     packet.terminalScript = openTerminal({
       app: ctx.settings.terminal,
       cwd: folder,
-      command: interactiveCommand('orgspec-engineer', prompt),
+      command: interactiveCommand('orgspec-engineer', prompt, { mcpConfig: join(folder, GATEWAY_CONFIG) }),
       scriptDir: ctx.paths.packets,
       name: o.ticket,
     });

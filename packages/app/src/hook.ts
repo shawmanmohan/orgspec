@@ -2,7 +2,13 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import type { Rule } from '@orgspec/constitution';
-import { evaluateFileWrite, evaluateGitCommand, type HookDecision } from '@orgspec/constitution/hook';
+import {
+  evaluateFileWrite,
+  evaluateGitCommand,
+  type HookDecision,
+  needsGitHubAccount,
+  parseInvocations,
+} from '@orgspec/constitution/hook';
 import { currentSession, findSessionFolder, logAction, readHookRules, type TicketSession } from './session.js';
 
 // `orgspec hook pre-tool-use` runs on every Bash and file-write tool call. p99 budget: 100 ms.
@@ -66,8 +72,6 @@ function activeGhAccount(host: string): string | undefined {
   }
 }
 
-const NEEDS_ACCOUNT = /\b(git\s+(push|fetch|pull|clone)|gh\s+(pr|api|repo|issue|release))\b/;
-
 export function preToolUse(
   input: HookInput,
   env: { ghAccount?: (host: string) => string | undefined } = {},
@@ -82,13 +86,17 @@ export function preToolUse(
 
   if (tool === 'Bash') {
     const command = String(input.tool_input?.command ?? '');
-    const repo = repoFor(s, resolve(cwd));
+    // `git -C repos/x …` from the ticket folder targets that repo, not the folder the shell is in.
+    const cDir = parseInvocations(command)
+      .map((inv) => (inv.tool === 'git' ? inv.args[inv.args.indexOf('-C') + 1] : undefined))
+      .find((d, i, all) => d !== undefined && all.length > 0 && parseInvocations(command)[i]?.args.includes('-C'));
+    const repo = repoFor(s, resolve(cwd, cDir ?? '.')) ?? repoFor(s, resolve(cwd));
     d = evaluateGitCommand(rules, command, {
       tier: s.tier,
       ...(repo ? { currentBranch: repo.branch } : {}),
       protectedBranches: s.protectedBranches,
     });
-    if (d.decision !== 'deny' && repo?.ghAccount && NEEDS_ACCOUNT.test(command)) {
+    if (d.decision !== 'deny' && repo?.ghAccount && needsGitHubAccount(command)) {
       const active = (env.ghAccount ?? activeGhAccount)(repo.host);
       if (active && active !== repo.ghAccount) {
         d = {
@@ -97,7 +105,7 @@ export function preToolUse(
         };
       }
     }
-    if (d.decision !== 'allow' || NEEDS_ACCOUNT.test(command)) {
+    if (d.decision !== 'allow' || needsGitHubAccount(command)) {
       logAction(folder, {
         kind: 'tool',
         tool,

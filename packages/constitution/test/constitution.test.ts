@@ -254,3 +254,60 @@ describe('compile', () => {
     expect(d.changed[0]?.fields).toEqual(['statement']);
   });
 });
+
+describe('git command parsing (bypass regressions)', () => {
+  const rules = [
+    rule({
+      id: 'eng.git.force',
+      enforcement: 'hook',
+      severity: 'blocking',
+      check: { kind: 'git-op', deny: ['force-push'], ask: [], tiers: ['low', 'medium', 'high'] },
+    }),
+  ];
+  const d = (cmd: string) => evaluateGitCommand(rules, cmd, { tier: 'low', currentBranch: 'pay-42' }).decision;
+  it.each([
+    'git -C repos/payments push --force origin pay-42',
+    'git -c core.askpass=x -C repos/payments push -f',
+    'git --git-dir=.git --no-pager push --force-with-lease',
+    'git push -uf origin pay-42',
+    'git push origin +pay-42',
+    'git push --mirror',
+    'sh -c "git push --force origin pay-42"',
+    "bash -lc 'cd repos/payments && git push -f'",
+    'echo $(git push --force)',
+    '(cd repos/payments; git push --force)',
+    'env GIT_TRACE=1 git push --force',
+    '/usr/bin/git push --force',
+  ])('denies %s', (cmd) => expect(d(cmd)).toBe('deny'));
+  it.each([
+    'git -C repos/payments push origin pay-42',
+    'git -C repos/payments status --short',
+    'echo "force push is not allowed"',
+    'git log --format=%H -f',
+  ])('allows %s', (cmd) => expect(d(cmd)).toBe('allow'));
+  it('resolves pushes of HEAD and protected branches through -C', () => {
+    expect(
+      evaluateGitCommand([], 'git -C repos/p push origin HEAD', { tier: 'low', currentBranch: 'main' }).decision,
+    ).toBe('deny');
+    expect(evaluateGitCommand([], 'git -C repos/p push origin HEAD:refs/heads/main', { tier: 'low' }).decision).toBe(
+      'deny',
+    );
+  });
+});
+
+describe('quoted text that is not a command', () => {
+  const rules = [
+    rule({
+      id: 'eng.git.force',
+      enforcement: 'hook',
+      severity: 'blocking',
+      check: { kind: 'git-op', deny: ['force-push'], ask: [], tiers: ['low', 'medium', 'high'] },
+    }),
+  ];
+  it.each(['git commit -m "docs: never git push --force"', 'echo "git push --force"', 'eval "git push --force"'])(
+    '%s',
+    (cmd) => {
+      expect(evaluateGitCommand(rules, cmd, { tier: 'low' }).decision).toBe(cmd.startsWith('eval') ? 'deny' : 'allow');
+    },
+  );
+});

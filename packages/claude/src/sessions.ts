@@ -82,8 +82,10 @@ export function normalizeSession(raw: unknown): ClaudeSession | undefined {
 export function parseBackgroundId(out: string): string | undefined {
   const uuid = /\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/i.exec(out)?.[1];
   if (uuid) return uuid;
-  const labelled = /\b(?:id|session)\b[:\s]+([A-Za-z0-9_-]{4,})/i.exec(out)?.[1];
-  if (labelled) return labelled;
+  // `backgrounded · 72f13a80 · NAME` and `claude attach 72f13a80`
+  const shown =
+    /backgrounded\s*·\s*([A-Za-z0-9_-]{4,})/.exec(out)?.[1] ?? /claude attach ([A-Za-z0-9_-]{4,})/.exec(out)?.[1];
+  if (shown) return shown;
   return out.trim().split(/\s+/).pop() || undefined;
 }
 
@@ -106,8 +108,8 @@ export function claudeSessions(runner: CommandRunner = runCommand, bin = CLAUDE_
       return list.flatMap((s) => normalizeSession(s) ?? []);
     },
     /** Starts a background session and returns its id. */
-    async start(o: { cwd: string; agent: string; prompt: string; name: string }): Promise<string> {
-      const out = await call(['--bg', '--agent', o.agent, '-n', o.name, o.prompt], o.cwd);
+    async start(o: { cwd: string; agent: string; prompt: string; name: string; mcpConfig?: string }): Promise<string> {
+      const out = await call(['--bg', '--agent', o.agent, '-n', o.name, ...gatewayArgs(o.mcpConfig), o.prompt], o.cwd);
       const id = parseBackgroundId(out);
       if (!id) throw new Error('claude --bg did not print a session id');
       return id;
@@ -151,9 +153,16 @@ export function openTerminal(o: {
 }
 
 /** The command line for an interactive Claude Code session with an agent and opening prompt. */
-export const interactiveCommand = (agent: string, prompt?: string, bin = CLAUDE_BIN): string[] => [
-  bin,
-  '--agent',
-  agent,
-  ...(prompt ? [prompt] : []),
-];
+export const interactiveCommand = (
+  agent: string,
+  prompt?: string,
+  o: { mcpConfig?: string; bin?: string } = {},
+): string[] => [o.bin ?? CLAUDE_BIN, '--agent', agent, ...gatewayArgs(o.mcpConfig), ...(prompt ? [prompt] : [])];
+
+/**
+ * Loads only the OrgSpec gateway, from a config passed on the command line: no project `.mcp.json`
+ * approval dialog, and no other MCP server. `--strict-mcp-config` also ends the variadic list, so a
+ * prompt after it stays a prompt.
+ */
+export const gatewayArgs = (mcpConfig?: string): string[] =>
+  mcpConfig ? ['--mcp-config', mcpConfig, '--strict-mcp-config'] : [];

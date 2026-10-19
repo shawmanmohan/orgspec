@@ -138,7 +138,7 @@ describe('generators', () => {
       sessionId: 'sess-1',
     });
     expect(written).toContain('.claude/agents/orgspec-engineer.md');
-    const mcp = JSON.parse(readFileSync(join(dir, '.mcp.json'), 'utf8'));
+    const mcp = JSON.parse(readFileSync(join(dir, '.orgspec/mcp.json'), 'utf8'));
     expect(mcp.mcpServers.orgspec.args).toEqual(['gateway', '--stdio', '--session', 'sess-1']);
     const agent = readFileSync(join(dir, '.claude/agents/prd-reviewer.md'), 'utf8');
     expect(agent).toMatch(/^---\nname: prd-reviewer/);
@@ -148,6 +148,36 @@ describe('generators', () => {
     expect(s.allowManagedHooksOnly).toBe(true);
     expect(s.allowedMcpServers).toEqual([{ serverName: 'orgspec' }]);
     expect(s.hooks.PreToolUse[0]?.hooks[0]?.command).toBe('orgspec hook pre-tool-use');
+  });
+});
+
+describe('background launch', () => {
+  it('passes the gateway on the command line and parses the short id', async () => {
+    const runner = fakeRunner([
+      {
+        match: () => true,
+        result: { code: 0, stdout: 'backgrounded · 72f13a80 · PAY-42 (idle)\n  claude attach 72f13a80\n', stderr: '' },
+      },
+    ]);
+    const id = await claudeSessions(runner).start({
+      cwd: '/w',
+      agent: 'orgspec-engineer',
+      prompt: 'go',
+      name: 'PAY-42',
+      mcpConfig: '/w/.orgspec/mcp.json',
+    });
+    expect(id).toBe('72f13a80');
+    expect(runner.calls[0]?.args).toEqual([
+      '--bg',
+      '--agent',
+      'orgspec-engineer',
+      '-n',
+      'PAY-42',
+      '--mcp-config',
+      '/w/.orgspec/mcp.json',
+      '--strict-mcp-config',
+      'go',
+    ]);
   });
 });
 

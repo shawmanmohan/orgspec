@@ -48,7 +48,7 @@ import {
   syncJobs,
   updateInboxTask,
 } from '@orgspec/app';
-import { interactiveCommand, openTerminal } from '@orgspec/claude';
+import { GATEWAY_CONFIG, interactiveCommand, openTerminal } from '@orgspec/claude';
 import { describeDiff, diffRules, loadBundle } from '@orgspec/constitution';
 import { DEFAULT_SYNC, isDuration } from '@orgspec/core';
 import { authorizeServer, pendingActions, waitForAuthCode } from '@orgspec/gateway';
@@ -247,7 +247,10 @@ export function registerAppCommands(program: Command, h: CommandHelpers): void {
       const script = openTerminal({
         app: c.settings.terminal,
         cwd: folder,
-        command: [...interactiveCommand('orgspec-engineer'), '--continue'],
+        command: [
+          ...interactiveCommand('orgspec-engineer', undefined, { mcpConfig: join(folder, GATEWAY_CONFIG) }),
+          '--continue',
+        ],
         scriptDir: c.paths.packets,
         name: `${jira}-resume`,
       });
