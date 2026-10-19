@@ -77,8 +77,9 @@ button,.btn{font:inherit;font-size:14px;min-height:36px;padding:6px 14px;border-
 button.ghost,.btn.ghost{background:var(--card);color:var(--fg);border:1px solid var(--line)}button.danger{background:var(--card);color:var(--bad);border:1px solid var(--bad)}
 button:disabled{background:var(--line);color:var(--muted);cursor:not-allowed}
 .admin button:not(.ghost):not(.danger),.admin .btn:not(.ghost){background:var(--admin-accent)}
+.admin button:disabled,button:disabled{background:var(--line);color:var(--muted)}
 input,select,textarea{font:inherit;font-size:14px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:38px}
-textarea{min-height:0}label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:500}
+textarea{min-height:0}input[type=checkbox]{min-height:0;width:16px;height:16px;padding:0;margin:0 6px 0 0;flex:none}label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:500}
 .tabs{display:flex;flex-wrap:wrap;gap:8px}.tabs a{padding:5px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--fg);text-decoration:none;font-size:14px}.tabs a.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 ul.clean{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}ol.steps{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:14px}
 .item{padding:14px 20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}.item:first-of-type{border-top:0}

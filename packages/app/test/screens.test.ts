@@ -387,3 +387,25 @@ describe('Slack summarizer', () => {
     expect(s.messages).toBe(1);
   });
 });
+
+describe('My evidence', () => {
+  it('finds the 1:1 page where you are the report, not the pages you hold as a manager', async () => {
+    const { dir } = orgConfig(RULES, {
+      'integrations.yaml': 'servers:\n  atlassian: { transport: stdio, command: x }\n',
+    });
+    const connector = memoryConnector({
+      atlassian: {
+        tools: [],
+        handle: () => ({
+          results: [
+            { content: { id: 'p-report', title: '1:1 me@x / asha@x', version: { number: 2 } } },
+            { content: { id: 'p-mine', title: '1:1 boss@x / me@x', version: { number: 3 } } },
+          ],
+        }),
+      },
+    });
+    const ctx = makeContext({ configDir: dir, connector, settings: { identity: { email: 'me@x' } } });
+    const { findMyOneOnOnePage } = await import('../src/index.js');
+    expect(await findMyOneOnOnePage(ctx, 'boss@x')).toBe('p-mine');
+  });
+});

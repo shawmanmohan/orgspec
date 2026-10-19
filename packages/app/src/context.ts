@@ -48,6 +48,7 @@ export class AppContext {
   readonly sessions: ClaudeSessions;
   private _settings?: UserSettings;
   private _config?: OrgConfig | null;
+  private _configAt = 0;
   private _bundle?: { bundle?: LoadedBundle; diagnostics: Diagnostic[] };
   private _db?: Db;
   private _private?: Db;
@@ -89,7 +90,13 @@ export class AppContext {
 
   /** The local orgspec-config checkout, or undefined when not set up. */
   config(): OrgConfig | undefined {
+    // The daemon is long-lived and config.pull updates the checkout, so reload at most once a minute.
+    if (this._config !== undefined && Date.now() - this._configAt > 60_000) {
+      this._config = undefined;
+      this._bundle = undefined;
+    }
     if (this._config === undefined) {
+      this._configAt = Date.now();
       const dir = this.configDir;
       this._config = dir ? loadOrgConfig(dir) : null;
     }

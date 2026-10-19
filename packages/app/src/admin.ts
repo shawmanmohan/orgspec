@@ -32,11 +32,49 @@ export const mcpFetcher = (ctx: AppContext): SourceFetcher => ({
 export const claudeExtractor = (ctx: AppContext): RuleExtractor => ({
   model: 'opus',
   async extract({ overlay, page, knownIds }) {
+    const seen = new Set<string>();
+    const previous = (ctx.config()?.personas ?? [])
+      .flatMap((p) => ctx.bundle(p).bundle?.rules ?? [])
+      .filter((r) => {
+        if (seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
+      });
     const job = await runAgentJob(ctx, {
       kind: 'constitution-extract',
       agent: 'constitution-compiler',
       prompt: promptWith(
-        `Extract rules for the ${overlay.spec.layer} layer "${overlay.metadata.id}"${overlay.spec.scope ? ` (scope ${overlay.spec.scope})` : ''}. Return {"rules": [{"id","title","statement","rationale","quote","appliesTo","enforcement","severity","check"}]}.\nKnown rule IDs (reuse when the rule is the same): ${knownIds.join(', ') || 'none'}`,
+        `Extract rules for the ${overlay.spec.layer} layer "${overlay.metadata.id}"${overlay.spec.scope ? ` (scope ${overlay.spec.scope})` : ''}.
+Return {"rules": [rule]} where each rule is exactly:
+{"id": "area.topic.short-name", "title": string, "statement": string, "rationale": string, "quote": "<words copied exactly from the page>",
+ "appliesTo": {"personas": [], "tiers": ["low","medium","high"], "artifacts": [], "paths": ["glob/**"]},
+ "enforcement": "advisory" | "review" | "ci" | "hook", "severity": "advisory" | "warning" | "blocking", "check": <check or omit>}
+Checks (use only when the rule can be checked exactly; otherwise omit "check" and use "advisory" or "review"):
+- {"kind":"git-op","deny":["force-push","push:main","merge"],"ask":["pr-ready"]} with enforcement "hook"
+- {"kind":"file-scope","deny":[".github/workflows/**"],"allowWhenNamedInSpec":true} with enforcement "hook"
+- {"kind":"path-rule","paths":["db/migrations/**"],"minTier":"high"} with enforcement "ci"
+- {"kind":"approval","artifact":"design.md","role":"staff-engineer","count":1} with enforcement "ci"
+- {"kind":"trace-coverage","tiers":["medium","high"]} with enforcement "ci"
+- {"kind":"pattern-forbid","paths":["**/*.ts"],"pattern":"<regex>"} with enforcement "ci"
+- {"kind":"artifact-required","artifacts":["design.md"],"tiers":["high"]} or {"kind":"section-required","artifact":"design.md","heading":"Rollback"} with enforcement "ci"
+- {"kind":"rubric","artifact":"prd" | "design","question":string} with enforcement "review"
+Known rule IDs (reuse the ID when the rule is the same): ${[...new Set([...knownIds, ...previous.map((r) => r.id)])].join(', ') || 'none'}
+${
+  previous.filter((r) => r.source.pageId === page.pageId).length
+    ? `Rules currently compiled from this page. Keep each one's id, enforcement and check unless the page now says something different:\n${previous
+        .filter((r) => r.source.pageId === page.pageId)
+        .map((r) =>
+          JSON.stringify({
+            id: r.id,
+            enforcement: r.enforcement,
+            severity: r.severity,
+            ...(r.check ? { check: r.check } : {}),
+            quote: r.source.quote,
+          }),
+        )
+        .join('\n')}`
+    : ''
+}`,
         { [`confluence:${page.pageId}:v${page.version}`]: `# ${page.title}\n\n${page.text}` },
       ),
       schema: z.object({ rules: z.array(z.unknown()) }),

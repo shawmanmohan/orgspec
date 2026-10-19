@@ -11,6 +11,7 @@ import {
   syncDmInbox,
   updateInboxTask,
 } from '../inbox.js';
+import { slackName } from '../oneonone.js';
 import { proposeChange } from '../prs.js';
 import { computeReminders } from '../reminder-rules.js';
 import { completeReminder, listReminders, snoozeReminder } from '../reminders.js';
@@ -150,7 +151,7 @@ export function registerSharedRoutes(app: FastifyInstance, ctx: AppContext) {
         const [label, kind] = KIND_LABEL[t.kind] ?? ['Request', 'info'];
         const link = slackLink(t.conversation, t.ts);
         return `<div class="item"><div class="row between"><b>${t.pinned ? '📌 ' : ''}${esc(t.title)}</b><span class="row">${pill(label, kind)}${t.sources.length > 1 ? pill(`${t.sources.length} sources`) : ''}</span></div>
-<span class="small muted">${esc(t.from)}${t.excerpt ? ` · “${esc(t.excerpt.slice(0, 160))}”` : ''}</span>
+<span class="small muted">${esc(slackName(ctx, t.from))}${t.excerpt ? ` · “${esc(t.excerpt.slice(0, 160))}”` : ''}</span>
 ${t.why && tab === 'next' ? `<span class="small"><b>Why ${t.priority <= 2 ? 'first' : 'here'}:</b> ${esc(t.why)}</span>` : ''}
 ${t.repliedAt && t.state !== 'done' ? `<span class="small note info">You replied in Slack — mark this done?</span>` : ''}
 <div class="row">${t.state === 'done' ? button('Reopen', 'POST', `/api/inbox/${t.id}`, { state: 'open' }, { ghost: true }) : `${button('Mark done', 'POST', `/api/inbox/${t.id}`, { state: 'done' })}${button(t.pinned ? 'Unpin' : 'Pin', 'POST', `/api/inbox/${t.id}`, { pinned: !t.pinned }, { ghost: true })}${button('Dismiss', 'POST', `/api/inbox/${t.id}`, { state: 'dismissed' }, { ghost: true })}`}${link ? `<a class="btn ghost" href="${esc(link)}">Open in Slack</a>` : ''}${t.jira ? pill(t.jira, 'info') : ''}<label class="small row"><input type="checkbox" class="pick" value="${esc(t.id)}"> select</label></div></div>`;

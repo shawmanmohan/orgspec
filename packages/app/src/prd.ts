@@ -82,7 +82,7 @@ export async function reviewPrdFull(ctx: AppContext, pageId: string): Promise<Pr
   if (!rubric.length) throw new Error('The constitution has no PRD rubric');
   const headings = [...text.matchAll(/^#{1,3}\s+(.+)$/gm)].map((m) => m[1]).join(' ');
   const decisions = searchDecisions(ctx.db(), `${page.title} ${headings} ${text.slice(0, 400)}`, 10, { any: true });
-  const author = /\b(?:author|owner)\s*:?\s*([A-Z][a-z]+(?: [A-Z][a-z]+)?)/.exec(text)?.[1];
+  const author = /\b(?:[Aa]uthor|[Oo]wner)\s*:?\s*([A-Z][a-z]+(?: [A-Z][a-z]+)?)/.exec(text)?.[1];
   const job = await runAgentJob(ctx, {
     kind: 'review:prd',
     agent: 'prd-reviewer',

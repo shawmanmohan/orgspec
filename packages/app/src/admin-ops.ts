@@ -231,7 +231,25 @@ export function startCompile(
             maxRules: ov?.spec.budget.maxRules ?? 60,
           };
         }),
-        blocking: r.diagnostics.filter((d) => d.severity === 'error'),
+        blocking: [
+          ...r.diagnostics.filter((d) => d.severity === 'error'),
+          // A candidate that does worse than the live bundle on the golden set, or that would empty a
+          // persona's rules, never gets a publish button.
+          ...evals
+            .filter((e) => e.candidate.failed > e.current.failed)
+            .map((e) => ({
+              severity: 'error' as const,
+              code: 'eval_regression',
+              message: `${e.persona}: ${e.candidate.failed} golden case(s) fail with the candidate, ${e.current.failed} with the live bundle (${e.failures.map((f) => f.name).join('; ')})`,
+            })),
+          ...r.bundles
+            .filter((b) => b.rules.length === 0 && (before[b.persona]?.rules.length ?? 0) > 0)
+            .map((b) => ({
+              severity: 'error' as const,
+              code: 'bundle_empty',
+              message: `${b.persona}: the candidate has no rules; the live bundle has ${before[b.persona]?.rules.length}`,
+            })),
+        ],
         warnings: r.diagnostics.filter((d) => d.severity !== 'error'),
         dropped: r.overlays.flatMap((x) => x.dropped),
         changes,

@@ -42,16 +42,51 @@ export type CompileProgress = (
 export const COMPILER_VERSION = '0.1.0';
 
 /** What the extractor must return for each rule; the compiler fills in layer, scope and source version. */
+const SEVERITY_WORDS: Record<string, 'advisory' | 'warning' | 'blocking'> = {
+  advisory: 'advisory',
+  info: 'advisory',
+  low: 'advisory',
+  minor: 'advisory',
+  warning: 'warning',
+  warn: 'warning',
+  medium: 'warning',
+  moderate: 'warning',
+  blocking: 'blocking',
+  block: 'blocking',
+  error: 'blocking',
+  high: 'blocking',
+  critical: 'blocking',
+  major: 'blocking',
+};
+
+/**
+ * What the extractor must return for each rule; the compiler fills in layer, scope and source version.
+ * Model output is untrusted, so common variants are normalised instead of losing an otherwise grounded
+ * rule: severity words ("high" → blocking), a null check, and an appliesTo that is not the object shape
+ * (dropped to the default, which applies the rule everywhere the layer applies).
+ */
 export const CandidateSchema = z.object({
   id: z.string(),
   title: z.string(),
   statement: z.string(),
-  rationale: z.string().default(''),
+  rationale: z
+    .string()
+    .nullish()
+    .transform((v) => v ?? ''),
   quote: z.string(),
-  appliesTo: RuleSchema.shape.appliesTo.optional(),
-  enforcement: z.enum(['advisory', 'review', 'ci', 'hook']),
-  severity: z.enum(['advisory', 'warning', 'blocking']).default('warning'),
-  check: z.unknown().optional(),
+  appliesTo: z.preprocess(
+    (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : undefined),
+    RuleSchema.shape.appliesTo.optional(),
+  ),
+  enforcement: z.preprocess(
+    (v) => (typeof v === 'string' ? v.toLowerCase().trim() : v),
+    z.enum(['advisory', 'review', 'ci', 'hook']),
+  ),
+  severity: z.preprocess(
+    (v) => (typeof v === 'string' ? (SEVERITY_WORDS[v.toLowerCase().trim()] ?? 'warning') : 'warning'),
+    z.enum(['advisory', 'warning', 'blocking']),
+  ),
+  check: z.preprocess((v) => (v === null ? undefined : v), z.unknown().optional()),
 });
 export type Candidate = z.infer<typeof CandidateSchema>;
 

@@ -17,7 +17,7 @@ export interface MyEvidence {
 }
 
 /** Finds the restricted 1:1 page your manager created (its title names your email). */
-export async function findMyOneOnOnePage(ctx: AppContext): Promise<string | undefined> {
+export async function findMyOneOnOnePage(ctx: AppContext, managerEmail?: string): Promise<string | undefined> {
   const db = ctx.db();
   const known = (
     db.prepare("select value from kv where key = 'myoneonone:page'").get() as { value: string } | undefined
@@ -25,8 +25,11 @@ export async function findMyOneOnOnePage(ctx: AppContext): Promise<string | unde
   if (known) return known;
   const me = ctx.settings.identity.email;
   if (!me) return undefined;
-  const hits = await ctx.workplace().confluence.search(`type = page AND title ~ "${me.replace(/"/g, '')}"`, 10);
-  const page = hits.find((h) => h.title.startsWith('1:1') && h.title.includes(me));
+  const hits = await ctx.workplace().confluence.search(`type = page AND title ~ "${me.replace(/"/g, '')}"`, 25);
+  // Titles read "1:1 <manager> / <report>": your page is the one where you are the report, not the
+  // pages you hold as a manager.
+  const asReport = hits.filter((h) => h.title.startsWith('1:1') && h.title.split('/').pop()?.trim() === me);
+  const page = asReport.find((h) => managerEmail && h.title.includes(managerEmail)) ?? asReport[0];
   if (page) db.prepare("insert or replace into kv (key, value) values ('myoneonone:page', ?)").run(page.id);
   return page?.id;
 }
@@ -73,7 +76,7 @@ export async function myEvidence(ctx: AppContext): Promise<MyEvidence> {
         .filter((p) => !p.updatedAt || p.updatedAt.slice(0, 10) >= since)
     : [];
   let page: MyEvidence['page'];
-  const pageId = await findMyOneOnOnePage(ctx).catch(() => undefined);
+  const pageId = await findMyOneOnOnePage(ctx, managerEmail).catch(() => undefined);
   if (pageId) {
     const p = await w.confluence.get(pageId).catch(() => undefined);
     if (p)

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { AppContext } from './context.js';
 import { overlap, searchDecisions } from './decisions.js';
 import { promptWith, runAgentJob } from './jobs.js';
+import { slackName } from './oneonone.js';
 import { remind } from './reminders.js';
 
 export const WINDOWS = { '24h': 1, '7d': 7, '30d': 30 } as const;
@@ -91,11 +92,20 @@ export async function summarizeSlack(
     kind: 'slack-summary',
     agent: 'slack-summarizer',
     prompt: promptWith(
-      `Summarise these Slack messages for a ${persona}${me ? ` whose user id is ${me}` : ''}; action items for them come first.
+      `Summarise these Slack messages for a ${persona}${me ? ' whose messages are marked from "ME"' : ''}; action items for them come first. Refer to people by the names given.
 Return {"summary": [{"topic","text","messages"}], "tasks": [{"text","owner","due","ts"}], "decisions": [{"text","by","date","ts"}], "questions": [{"text","askedOf"}], "nextSteps": [string]}.
 A decision is only something people explicitly agreed; name who agreed. Say "owner not stated" or leave due empty rather than guessing.`,
       {
-        slack: all.map((m) => JSON.stringify({ channel: m.channel, ts: m.ts, from: m.user, text: m.text })).join('\n'),
+        slack: all
+          .map((m) =>
+            JSON.stringify({
+              channel: m.channel,
+              ts: m.ts,
+              from: m.user && m.user === me ? 'ME' : slackName(ctx, m.user ?? ''),
+              text: m.text,
+            }),
+          )
+          .join('\n'),
       },
     ),
     schema: SummarySchema,

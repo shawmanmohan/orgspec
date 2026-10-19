@@ -120,6 +120,30 @@ function seed() {
       version: 3,
       body: '<h2>Senior engineer</h2><p>Leads designs across teams; brings owning teams in at draft stage; mentors newer engineers; raises the bar in reviews.</p><h2>Staff engineer</h2><p>Sets technical direction for a domain; aligns several teams on a decision.</p>',
     },
+    '100001': {
+      id: '100001',
+      title: 'Engineering handbook',
+      version: 41,
+      body: '<h1>Engineering handbook</h1><h2>Branches</h2><p>Never force-push to a branch someone else may have pulled. Agents and people push ticket branches only; pull requests start as drafts and a person marks them ready.</p><h2>Testing</h2><p>Every behaviour change ships with a test that names the scenario it covers.</p><h2>Secrets</h2><p>Credentials never go into source control.</p><h2>Pull requests</h2><p>Prefer small pull requests that are easy to review.</p>',
+    },
+    '100002': {
+      id: '100002',
+      title: 'Change management',
+      version: 10,
+      body: '<h1>Change management</h1><p>Pipeline definitions change only through a reviewed change. Schema migrations are always high risk and need a high-tier change. High-risk designs are approved by a staff engineer before work starts. Describe how you would roll back any change that touches production data.</p>',
+    },
+    '200001': {
+      id: '200001',
+      title: 'Payments engineering standards',
+      version: 7,
+      body: '<h1>Payments engineering standards</h1><p>Every capture, refund and payout call carries an idempotency key. Payments code never logs a full card number.</p>',
+    },
+    '300001': {
+      id: '300001',
+      title: 'How we write PRDs',
+      version: 20,
+      body: '<h1>How we write PRDs</h1><p>State how you will measure success, with a target. List what you are not doing. State latency targets for anything a user waits on. Say how you will roll out and how you would roll back. Reviewers respond within five working days.</p>',
+    },
     'p-prd-tokens': prd(
       'p-prd-tokens',
       'Regional card token storage',
@@ -163,7 +187,15 @@ function seed() {
 
 const load = () =>
   existsSync(stateFile)
-    ? JSON.parse(readFileSync(stateFile, 'utf8'))
+    ? (() => {
+        // Pages added to the seed later appear in existing demo state too.
+        const st = JSON.parse(readFileSync(stateFile, 'utf8'));
+        const fresh = seed().pages;
+        let changed = false;
+        for (const [id, page] of Object.entries(fresh)) if (!st.pages[id]) ((st.pages[id] = page), (changed = true));
+        if (changed) writeFileSync(stateFile, JSON.stringify(st, null, 2));
+        return st;
+      })()
     : (() => {
         const s = seed();
         writeFileSync(stateFile, JSON.stringify(s, null, 2));

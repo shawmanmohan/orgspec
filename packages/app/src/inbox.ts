@@ -4,6 +4,7 @@ import type { SlackMessage } from '@orgspec/integrations';
 import { z } from 'zod';
 import type { AppContext } from './context.js';
 import { promptWith, runAgentJob } from './jobs.js';
+import { slackName } from './oneonone.js';
 
 export const TASK_KINDS = ['request', 'saved', 'commitment', 'question', 'fyi'] as const;
 
@@ -113,9 +114,22 @@ export async function syncDmInbox(
   let added = 0;
   const lines = [
     ...fresh.map((m) =>
-      JSON.stringify({ conversation: m.channel, ts: m.ts, from: m.mine ? 'ME' : m.user, text: m.text }),
+      JSON.stringify({
+        conversation: m.channel,
+        ts: m.ts,
+        from: m.mine ? 'ME' : slackName(ctx, m.user ?? ''),
+        text: m.text,
+      }),
     ),
-    ...saved.map((m) => JSON.stringify({ conversation: m.channel, ts: m.ts, from: m.user, text: m.text, saved: true })),
+    ...saved.map((m) =>
+      JSON.stringify({
+        conversation: m.channel,
+        ts: m.ts,
+        from: slackName(ctx, m.user ?? ''),
+        text: m.text,
+        saved: true,
+      }),
+    ),
   ];
   if (lines.length) {
     const job = await runAgentJob(ctx, {
@@ -124,7 +138,7 @@ export async function syncDmInbox(
       prompt: promptWith(
         `Turn these Slack messages into tasks for the person whose messages are marked from "ME". Return {"tasks": [{"title","from","due","ts","conversation","kind","excerpt","why","priority","group","jira"}]}.
 kind: "request" (someone asks them for something), "saved" (a message they saved), "commitment" (they promised something, e.g. "I'll send it tomorrow"), "question" (someone waits for their answer), "fyi" (no action needed).
-excerpt: a short quote of the message. why: one short reason for the priority (due date, someone is blocked). priority 1–5. group: a short theme, or a Jira epic key when the message names one. jira: a ticket key the message names, if any. Skip chit-chat entirely.`,
+excerpt: a short quote of the message. why: one short reason for the priority. priority: 1 only when it is due within two days, overdue, or someone says they are blocked; 2 when someone is waiting on an answer; 3 for other requests and commitments; 4–5 for saved messages without a deadline. group: a short theme, or a Jira epic key when the message names one. jira: a ticket key the message names, if any. Skip chit-chat entirely.`,
         { messages: lines.join('\n') },
       ),
       schema: TriageSchema,

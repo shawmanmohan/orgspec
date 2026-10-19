@@ -311,3 +311,23 @@ describe('quoted text that is not a command', () => {
     },
   );
 });
+
+describe('candidate normalisation', () => {
+  it('keeps grounded rules whose model output uses common variants', async () => {
+    const { CandidateSchema } = await import('../src/index.js');
+    const c = CandidateSchema.parse({
+      id: 'a.b',
+      title: 't',
+      statement: 's',
+      rationale: null,
+      quote: 'q',
+      appliesTo: 'payments',
+      enforcement: 'Advisory',
+      severity: 'high',
+      check: null,
+    });
+    expect(c).toMatchObject({ severity: 'blocking', enforcement: 'advisory', rationale: '' });
+    expect(c.appliesTo).toBeUndefined();
+    expect(c.check).toBeUndefined();
+  });
+});

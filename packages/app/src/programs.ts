@@ -290,9 +290,21 @@ export async function nudgeTarget(ctx: AppContext, p: Program, ticket: string): 
 
 export function nudgeDraft(p: Program, ticket: string, target: NudgeTarget): string {
   const t = p.tickets.find((x) => x.key === ticket);
-  const driver = p.drivers.find((d) => d.tickets.includes(ticket));
   const first = target.name.split(' ')[0];
-  return `Hi ${first}, ${ticket} (${t?.summary ?? ''}) ${driver ? driver.text.replace(new RegExp(`^${ticket}\\s*`), '') : 'needs attention'}. Could someone pick it up this week, or tell me if it needs re-planning?`;
+  if (!t) return `Hi ${first}, could you take a look at ${ticket}?`;
+  const idle = workingDaysBetween(new Date(t.updated), new Date());
+  const waiting = t.blocks.length
+    ? ` and ${t.blocks.length} ${t.blocks.length === 1 ? 'story waits' : 'stories wait'} on it (${t.blocks.join(', ')})`
+    : '';
+  const fact = !t.assignee
+    ? `has been unassigned for ${idle} working day${idle === 1 ? '' : 's'}${waiting}`
+    : t.inProgress
+      ? `has been in progress for ${idle} working day${idle === 1 ? '' : 's'} with no pull request yet${waiting}`
+      : `hasn't moved for ${idle} working day${idle === 1 ? '' : 's'}${waiting}`;
+  const ask = !t.assignee
+    ? 'Could someone on your team pick it up this week, or tell me if it needs re-planning?'
+    : 'Is anything blocking it that I can help with?';
+  return `Hi ${first}, ${ticket} (${t.summary}) ${fact}. ${ask}`;
 }
 
 /** Local time for someone, and whether quiet hours (19:00–09:00 their time) apply. */

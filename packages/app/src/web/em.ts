@@ -1,4 +1,5 @@
 import { join, relative } from 'node:path';
+import type { Rule } from '@orgspec/constitution';
 import { listChangeIds, loadChange } from '@orgspec/spec-engine';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { addApproval, artifactHashes, loadRoles, readApprovals } from '../approvals.js';
@@ -46,7 +47,11 @@ function approvalQueue(ctx: AppContext): ApprovalItem[] {
   const myRoles = Object.entries(roles.roles)
     .filter(([, members]) => members.some((m) => m.toLowerCase() === me))
     .map(([r]) => r);
-  const rules = ctx.bundle().bundle?.rules ?? [];
+  // Approval rules are enforced by CI with whichever persona bundle the repo uses, so consider them all.
+  const byId = new Map<string, Rule>();
+  for (const p of ctx.config()?.personas ?? [])
+    for (const r of ctx.bundle(p).bundle?.rules ?? []) if (r.check?.kind === 'approval') byId.set(r.id, r);
+  const rules = [...byId.values()];
   const out: ApprovalItem[] = [];
   for (const { slug, ws } of localWorkspaces(ctx)) {
     for (const id of listChangeIds(ws)) {
@@ -169,7 +174,7 @@ export function registerEmRoutes(app: FastifyInstance, ctx: AppContext) {
         .call(target.ws.repoRoot, [
           'log',
           '-p',
-          `--since=${req.query.since}`,
+          `--since=${req.query.since.slice(0, 10)} 00:00:00`,
           '--format=--- %h %an %ad %s',
           '--date=short',
           '--',
@@ -335,7 +340,7 @@ ${
         ]),
         'No dependencies found.',
       )}</section>
-<section class="card" id="feas"><h2>Feasibility</h2>${r.feasibility.map((f) => `<div class="row" style="align-items:flex-start">${pill(f.kind.toUpperCase(), f.kind === 'blocker' ? 'bad' : f.kind === 'spike' ? 'warn' : '')}<span>${esc(f.text)}${f.adr ? ` <a href="/decisions?id=${esc(f.adr)}">${esc(f.adr)}</a>` : ''}</span></div>`).join('') || '<p class="muted" style="margin:0">No feasibility concerns.</p>'}</section>
+<section class="card" id="feas"><h2>Feasibility</h2>${r.feasibility.map((f) => `<div class="row" style="align-items:flex-start">${pill(f.kind.toUpperCase(), f.kind === 'blocker' ? 'bad' : f.kind === 'spike' ? 'warn' : '')}<span>${esc(f.text)}${f.adr ? ` <a href="/decisions?id=${esc(f.adr)}">${esc(f.adr)}</a>${f.verified === false ? ' <span class="small warn">(not found in your indexed decisions; check it)</span>' : ''}` : ''}</span></div>`).join('') || '<p class="muted" style="margin:0">No feasibility concerns.</p>'}</section>
 </div><div class="side"><section class="card focus"><h2>Your decision</h2>
 <div class="row">${pill(`${counts.accepted} accepted`, 'ok')}${pill(`${counts.rejected} rejected`)}${pill(`${counts.open} to decide`, counts.open ? 'warn' : '')}</div>
 ${d ? `<p class="note ${d.decision === 'approved' ? 'info' : 'warn'}">${d.decision === 'approved' ? 'Approved' : 'Returned'} v${d.version} by ${esc(d.by)} · ${esc(day(d.at))}${d.version !== current ? ' · a newer version needs a fresh look' : ''}</p>` : ''}

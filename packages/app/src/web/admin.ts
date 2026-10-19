@@ -1,4 +1,5 @@
 import { DEFAULT_SYNC } from '@orgspec/core';
+import { DEFAULT_OPERATIONS } from '@orgspec/integrations';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { adminCheck, adminPublish, adminRollback, bundleVersions } from '../admin.js';
 import {
@@ -179,7 +180,9 @@ ${run?.error ? `<p class="note bad">${esc(run.error)}</p>` : ''}
     const rollback = (cfg?.personas ?? []).map((p) => {
       const versions = ctx.configDir ? bundleVersions(ctx.configDir, p.metadata.id) : [];
       const live = ctx.bundle(p).bundle?.manifest.version;
-      return `<div><b>${esc(p.metadata.name)}</b>${versions
+      // Only versions at or before the live one: a candidate is published with the button above, not "pointed back" to.
+      const older = live ? versions.filter((v) => v.localeCompare(live, undefined, { numeric: true }) <= 0) : versions;
+      return `<div><b>${esc(p.metadata.name)}</b>${older
         .slice(0, 4)
         .map(
           (v) =>
@@ -424,7 +427,7 @@ ${button('Open PR in orgspec-config', 'POST', '/api/admin/waivers', { js: "form(
       jobs: syncJobs(ctx),
     });
     const states = sched.states();
-    const ops = cfg?.integrations.operations ?? {};
+    const ops = { ...DEFAULT_OPERATIONS, ...(cfg?.integrations.operations ?? {}) };
     const through = (src: string) => {
       const prefix = src.split('.')[0] ?? '';
       if (prefix === 'github') return 'gh CLI';

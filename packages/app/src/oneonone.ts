@@ -512,3 +512,22 @@ export function requestManagerChange(ctx: AppContext, email: string, note: strin
     summary: `Ask HR to make you ${email}'s manager${note ? `: ${note}` : ''}`,
   }).id;
 }
+
+/** A person's display name for a Slack user ID, from people.yaml and the HR directory; falls back to the ID. */
+export function slackName(ctx: AppContext, id: string): string {
+  if (!id || id === 'ME') return id === 'ME' ? 'You' : id;
+  const people = loadPeople(ctx.configDir).people;
+  const email = Object.entries(people).find(([, v]) => v.slack === id)?.[0];
+  if (!email) return id;
+  const raw = (
+    ctx.db().prepare("select value from kv where key = 'hr:reports'").get() as { value?: string } | undefined
+  )?.value;
+  const hr = raw ? (JSON.parse(raw) as { email: string; name: string }[]) : [];
+  const name = hr.find((p) => p.email === email)?.name;
+  if (name) return name;
+  const local = email.split('@')[0] ?? email;
+  return local
+    .split(/[._-]/)
+    .map((p) => (p[0]?.toUpperCase() ?? '') + p.slice(1))
+    .join(' ');
+}
