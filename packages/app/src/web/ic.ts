@@ -274,7 +274,18 @@ ${ev.issues.map((i) => `<div class="item"><div class="row between"><span><span c
 ${ev.prs.map((p) => `<div class="item"><div class="row between"><span><a href="${esc(p.url)}">${esc(p.repo)}#${p.number}</a> ${esc(p.title)} ${pill(p.state)}</span>${ctxBtn(`${p.repo}#${p.number}`)}</div></div>`).join('')}
 ${!ev.issues.length && !ev.prs.length ? '<p class="muted" style="padding:14px 20px;margin:0">No tickets or pull requests in this window.</p>' : ''}
 </section>
-<section class="card flush"><h2>Contributions in discussions <span class="small muted">· allowlisted work channels only</span></h2><p class="muted" style="padding:14px 20px;margin:0">No channels are allowlisted for 1:1 evidence in orgspec-config, so none are read.</p></section>
+<section class="card flush"><h2>Contributions in discussions <span class="small muted">· allowlisted work channels only</span></h2>${
+          !ev.channelsAllowlisted
+            ? '<p class="muted" style="padding:14px 20px;margin:0">No channels are allowlisted for 1:1 evidence in orgspec-config (people.yaml evidenceChannels), so none are read.</p>'
+            : ev.discussions.length
+              ? ev.discussions
+                  .map(
+                    (d) =>
+                      `<div class="item"><div class="row between"><span>${esc(d.text)} <span class="small muted">· #${esc(d.channel)}</span></span><span class="row">${ctxBtn(`#${d.channel} message`)}${ctxBtn(`#${d.channel} message`, true)}</span></div></div>`,
+                  )
+                  .join('')
+              : '<p class="muted" style="padding:14px 20px;margin:0">Nothing you wrote in the allowlisted channels in this window.</p>'
+        }</section>
 <section class="card flush"><h2>Growth goals</h2>${ev.page?.goals.length ? ev.page.goals.map((g) => `<div class="item"><b>${esc(g)}</b><span class="small muted">Your manager’s brief reports evidence for or against this from the sources above. Mentoring and calls often leave no trace; add context if they happened.</span>${ctxBtn(g)}</div>`).join('') : '<p class="muted" style="padding:14px 20px;margin:0">No goals on your shared page yet.</p>'}</section>
 ${ev.page?.context.length ? card('Your context so far', `<ul class="clean">${ev.page.context.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>${ctxBtn('a past item', true)}`) : ''}
 ${card(

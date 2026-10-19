@@ -26,6 +26,8 @@ export const PeopleSchema = z.object({
     })
     .default({}),
   teamLeads: z.record(z.string(), z.string()).default({}),
+  /** Work channels whose messages may count as 1:1 evidence. Never DMs or private channels. */
+  evidenceChannels: z.array(z.string()).default([]),
 });
 export type People = z.infer<typeof PeopleSchema>;
 // teamLeads: Jira project or team → lead's work email, for nudges about unassigned tickets.
@@ -362,6 +364,11 @@ export async function prepareBrief(
   }
   const actions = await listActions(ctx, report.email);
   if (actions.length) signals.openActions = actions.map((a) => `- (${a.owner}) ${a.text}`).join('\n');
+  const talk = await discussionEvidence(ctx, report.email, since).catch(() => []);
+  if (talk.length) {
+    sources.push(...talk.map((t) => `#${t.channel}`));
+    signals.discussions = talk.map((t) => `#${t.channel} ${t.ts}: ${t.text}`).join('\n');
+  }
   const careerId = loadPeople(ctx.configDir).oneOnOne.careerPageId;
   let career: string | undefined;
   if (careerId) {
@@ -530,4 +537,34 @@ export function slackName(ctx: AppContext, id: string): string {
     .split(/[._-]/)
     .map((p) => (p[0]?.toUpperCase() ?? '') + p.slice(1))
     .join(' ');
+}
+
+export interface Contribution {
+  channel: string;
+  ts: string;
+  text: string;
+}
+
+/**
+ * Messages a person wrote in the org's allowlisted work channels since a date. These are the only Slack
+ * messages 1:1 evidence may use: never DMs, private channels or message counts.
+ */
+export async function discussionEvidence(ctx: AppContext, email: string, since: string): Promise<Contribution[]> {
+  const people = loadPeople(ctx.configDir);
+  const slackId =
+    people.people[email]?.slack ??
+    (email === ctx.settings.identity.email ? ctx.settings.identity.slackUserId : undefined);
+  if (!slackId || !people.evidenceChannels.length) return [];
+  const oldest = String(Math.floor(Date.parse(since) / 1000));
+  const out: Contribution[] = [];
+  for (const ch of people.evidenceChannels.slice(0, 10)) {
+    const name = ch.replace(/^#/, '');
+    const msgs = await ctx
+      .workplace()
+      .slack.history(name, oldest, 300)
+      .catch(() => []);
+    for (const m of msgs)
+      if (m.user === slackId && m.text.trim()) out.push({ channel: name, ts: m.ts, text: m.text.slice(0, 300) });
+  }
+  return out.slice(0, 30);
 }

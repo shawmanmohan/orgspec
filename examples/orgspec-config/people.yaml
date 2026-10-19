@@ -6,3 +6,5 @@ people:
   lena.fischer@acme.io: { github: lena-f, slack: U04LENA, jiraAccountId: "acct-lena" }
 oneOnOne:
   spaceId: "98765" # restricted Confluence space for 1:1 pages
+# Work channels whose messages may count as 1:1 evidence (never DMs or private channels).
+evidenceChannels: [payments-eng, eng-help]

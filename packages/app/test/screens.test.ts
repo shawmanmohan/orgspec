@@ -409,3 +409,33 @@ describe('My evidence', () => {
     expect(await findMyOneOnOnePage(ctx, 'boss@x')).toBe('p-mine');
   });
 });
+
+describe('discussion evidence', () => {
+  it('reads only allowlisted channels and only the person’s own messages', async () => {
+    const { dir } = orgConfig(RULES, {
+      'integrations.yaml': 'servers:\n  slack: { transport: stdio, command: x }\n',
+      'people.yaml': 'people:\n  asha@x: { slack: U3 }\nevidenceChannels: [payments-eng]\n',
+    });
+    const asked: string[] = [];
+    const connector = memoryConnector({
+      slack: {
+        tools: [],
+        handle: (_t, a) => {
+          asked.push(String(a.channel));
+          return {
+            messages: [
+              { ts: '1800000000.1', user: 'U3', text: 'Proposal: cap retries at 3' },
+              { ts: '1800000000.2', user: 'U9', text: 'agree' },
+            ],
+          };
+        },
+      },
+    });
+    const ctx = makeContext({ configDir: dir, connector });
+    const { discussionEvidence } = await import('../src/index.js');
+    const got = await discussionEvidence(ctx, 'asha@x', '2026-01-01');
+    expect(got).toEqual([{ channel: 'payments-eng', ts: '1800000000.1', text: 'Proposal: cap retries at 3' }]);
+    expect(asked).toEqual(['payments-eng']);
+    expect(await discussionEvidence(ctx, 'nobody@x', '2026-01-01')).toEqual([]);
+  });
+});

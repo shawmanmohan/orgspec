@@ -1,6 +1,6 @@
 import type { CalendarEvent, JiraIssue, PullRequest } from '@orgspec/integrations';
 import type { AppContext } from './context.js';
-import { sectionItems } from './oneonone.js';
+import { type Contribution, discussionEvidence, loadPeople, sectionItems } from './oneonone.js';
 
 // The report's side of 1:1s: the same evidence the manager's brief draws on, and a way to add context.
 
@@ -12,6 +12,9 @@ export interface MyEvidence {
   nextOneOnOne?: CalendarEvent;
   issues: JiraIssue[];
   prs: PullRequest[];
+  discussions: Contribution[];
+  /** True when orgspec-config allowlists channels for 1:1 evidence. */
+  channelsAllowlisted: boolean;
   page?: { id: string; agenda: string[]; goals: string[]; context: string[] };
   errors: string[];
 }
@@ -87,10 +90,14 @@ export async function myEvidence(ctx: AppContext): Promise<MyEvidence> {
         context: sectionItems(p.storage, /^context from/i),
       };
   }
+  const discussions = await discussionEvidence(ctx, me, since).catch(() => [] as Contribution[]);
+  const channelsAllowlisted = loadPeople(ctx.configDir).evidenceChannels.length > 0;
   return {
     since,
     issues,
     prs,
+    discussions,
+    channelsAllowlisted,
     errors,
     ...(manager ? { manager: { email: manager.email, ...(manager.name ? { name: manager.name } : {}) } } : {}),
     ...(next ? { nextOneOnOne: next } : {}),
