@@ -14,7 +14,7 @@ describe('examples/orgspec-config', () => {
     expect(cfg.personas.map((p) => p.metadata.id).sort()).toEqual([
       'engineer',
       'engineering-manager',
-      'product-manager',
+      'project-manager',
     ]);
     expect(cfg.overlays).toHaveLength(3);
     expect(Object.keys(cfg.integrations.servers)).toContain('ci');

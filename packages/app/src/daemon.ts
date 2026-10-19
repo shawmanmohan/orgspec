@@ -4,20 +4,22 @@ import { createServer, type Server as NetServer } from 'node:net';
 import { readJsonFile, writeFileAtomic } from '@orgspec/core';
 import { pendingActions } from '@orgspec/gateway';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
-import { adminCheck, bundleVersions } from './admin.js';
 import type { AppContext } from './context.js';
-import { band, button, card, esc, page, table } from './dashboard.js';
 import { searchDecisions } from './decisions.js';
 import { preToolUse } from './hook.js';
-import { listInbox, updateInboxTask } from './inbox.js';
+import { listInbox } from './inbox.js';
 import { listJobs } from './jobs.js';
 import { createPacket, listPackets } from './packet.js';
+import { computeReminders } from './reminder-rules.js';
 import { completeReminder, deliverReminders, listReminders, snoozeReminder } from './reminders.js';
 import { listFindings, reviewPrd, setFindingStatus } from './reviews.js';
 import { executePending, scoreCachedIssues } from './risk.js';
 import { Scheduler } from './scheduler.js';
 import { syncJobs } from './sync.js';
 import { registerTeamRoutes } from './team-pages.js';
+import { registerIcRoutes } from './web/ic.js';
+import { registerSharedRoutes } from './web/shared.js';
+import { registerShellRoutes } from './web/shell.js';
 
 export interface DaemonInfo {
   pid: number;
@@ -121,18 +123,6 @@ export async function startDaemon(
     return { ok: true };
   });
   app.get('/api/inbox', async () => listInbox(ctx));
-  app.post(
-    '/api/inbox/:id',
-    async (
-      req: FastifyRequest<{
-        Params: { id: string };
-        Body: { state?: 'open' | 'done' | 'snoozed' | 'dismissed'; pinned?: boolean };
-      }>,
-    ) => {
-      updateInboxTask(ctx, req.params.id, req.body);
-      return { ok: true };
-    },
-  );
   app.get('/api/reminders', async () => listReminders(ctx));
   app.post('/api/reminders/:id/done', async (req: FastifyRequest<{ Params: { id: string } }>) => {
     completeReminder(ctx, req.params.id);
@@ -193,287 +183,10 @@ export async function startDaemon(
   );
 
   // ---- Pages ----
-  const html = (reply: FastifyReply, path: string, title: string, body: string) =>
-    reply.type('text/html').send(page(path, title, body));
-
-  app.get('/', async (_req, reply) => {
-    const packets = listPackets(ctx);
-    const prs = ctx.db().prepare('select * from cache_github_prs order by updated_at desc limit 20').all() as Record<
-      string,
-      string
-    >[];
-    const ci = ctx.db().prepare('select * from cache_ci_runs order by source_updated_at desc limit 10').all() as Record<
-      string,
-      string
-    >[];
-    const issues = ctx
-      .db()
-      .prepare('select key, status, summary from cache_jira_issues order by source_updated_at desc limit 20')
-      .all() as Record<string, string>[];
-    const body = [
-      card(
-        'Start work on a ticket',
-        `<input id="t" placeholder="PROJ-123"> <select id="m"><option value="interactive">Interactive</option><option value="background">Background</option><option value="none">Folder only</option></select> <button onclick="act(this,'POST','/api/packets',{ticket:document.getElementById('t').value,launch:document.getElementById('m').value})">Open packet</button>`,
-      ),
-      card(
-        'Ticket folders',
-        table(
-          ['Ticket', 'Persona', 'Tier', 'Repos', 'State'],
-          packets.map((p) => [
-            esc(p.ticket),
-            esc(p.persona),
-            esc(p.tier),
-            esc(p.repos.map((r) => r.slug).join(', ')),
-            esc(p.state),
-          ]),
-        ),
-      ),
-      card(
-        'Jira',
-        table(
-          ['Key', 'Status', 'Summary'],
-          issues.map((i) => [esc(i.key), esc(i.status), esc(i.summary)]),
-        ),
-      ),
-      card(
-        'Pull requests',
-        table(
-          ['PR', 'State', 'Review'],
-          prs.map((p) => [
-            `<a href="${esc(p.url)}">${esc(p.repo)}#${esc(p.number)}</a> ${esc(p.title)}`,
-            esc(p.state),
-            esc(p.review_decision ?? ''),
-          ]),
-        ),
-      ),
-      card(
-        'CI',
-        table(
-          ['Repo', 'Branch', 'Result'],
-          ci.map((r) => [
-            esc(r.repo),
-            esc(r.branch),
-            `<span class="${r.status === 'failed' ? 'bad' : r.status === 'passed' ? 'ok' : 'muted'}">${esc(r.status)}</span>`,
-          ]),
-        ),
-      ),
-      card(
-        'Reminders',
-        table(
-          ['', 'Due'],
-          listReminders(ctx).map((r) => [
-            `${r.url ? `<a href="${esc(r.url)}">${esc(r.title)}</a>` : esc(r.title)}`,
-            `${esc(r.dueAt.slice(0, 16))} ${button('Done', 'POST', `/api/reminders/${r.id}/done`)} ${button('Snooze', 'POST', `/api/reminders/${r.id}/snooze`, { hours: 24 }, true)}`,
-          ]),
-        ),
-      ),
-    ].join('');
-    return html(reply, '/', 'My work', body);
-  });
-
-  app.get('/inbox', async (_req, reply) => {
-    const tasks = ctx.settings.dmInbox.enabled ? await listInbox(ctx) : [];
-    return html(
-      reply,
-      '/inbox',
-      'Inbox',
-      ctx.settings.dmInbox.enabled
-        ? table(
-            ['Task', 'From', 'Due', ''],
-            tasks.map((t) => [
-              `${t.pinned ? '📌 ' : ''}${esc(t.title)} <span class="pill">${esc(t.kind)}</span>`,
-              esc(t.from),
-              esc(t.due ?? ''),
-              `${button('Done', 'POST', `/api/inbox/${t.id}`, { state: 'done' })} ${button(t.pinned ? 'Unpin' : 'Pin', 'POST', `/api/inbox/${t.id}`, { pinned: !t.pinned }, true)} ${button('Dismiss', 'POST', `/api/inbox/${t.id}`, { state: 'dismissed' }, true)}`,
-            ]),
-            'No open asks. Direct messages are triaged on your machine and stored encrypted.',
-          )
-        : '<p class="muted">The DM inbox is off. Turn it on in Settings.</p>',
-    );
-  });
-
-  app.get('/reviews', async (_req, reply) => {
-    const f = listFindings(ctx).filter((x) => x.verdict !== 'pass');
-    return html(
-      reply,
-      '/reviews',
-      'Reviews',
-      card(
-        'Review a PRD',
-        `<input id="p" placeholder="Confluence page ID"> <button onclick="act(this,'POST','/api/reviews/prd',{pageId:document.getElementById('p').value})">Review</button>`,
-      ) +
-        table(
-          ['Subject', 'Rule', 'Finding', ''],
-          f.map((x) => [
-            esc(x.subject),
-            `<span class="pill ${x.verdict === 'fail' ? 'bad' : 'warn'}">${esc(x.rubricId)}</span>`,
-            `<blockquote class="muted">${esc(x.quote)}</blockquote>${esc(x.finding)}<br><span class="muted">${esc(x.suggestion)}</span>`,
-            `${button('Accept', 'POST', `/api/findings/${x.id}`, { status: 'accepted' })} ${button('Dismiss', 'POST', `/api/findings/${x.id}`, { status: 'dismissed' }, true)}`,
-          ]),
-          'No open findings.',
-        ),
-    );
-  });
-
-  app.get('/risk', async (_req, reply) => {
-    const scores = scoreCachedIssues(ctx)
-      .filter((s) => s.score > 0)
-      .sort((a, b) => b.score - a.score);
-    return html(
-      reply,
-      '/risk',
-      'Delivery risk',
-      table(
-        ['Ticket', 'Score', 'Why'],
-        scores.map((s) => [esc(s.key), `${band(s.band)} ${s.score}`, esc(s.drivers.map((d) => d.detail).join('; '))]),
-        'No at-risk tickets in the cache.',
-      ),
-    );
-  });
-
-  app.get('/oneonone', async (_req, reply) => reply.redirect('/team'));
-
-  app.get('/decisions', async (req: FastifyRequest<{ Querystring: { q?: string } }>, reply) => {
-    const q = req.query.q ?? '';
-    const hits = q ? searchDecisions(ctx.db(), q, 25) : [];
-    return html(
-      reply,
-      '/decisions',
-      'Decisions',
-      `<form><input name="q" value="${esc(q)}" placeholder="Search decision records"> <button>Search</button></form>${
-        q
-          ? table(
-              ['ADR', 'Repo', 'Status', 'Match'],
-              hits.map((h) => [`${esc(h.adrId)} ${esc(h.title)}`, esc(h.repo), esc(h.status), esc(h.snippet)]),
-            )
-          : ''
-      }`,
-    );
-  });
-
-  app.get('/actions', async (_req, reply) => {
-    const list = pending.list();
-    return html(
-      reply,
-      '/actions',
-      'Approvals',
-      table(
-        ['Action', 'Ticket', 'State', ''],
-        list.map((a) => [
-          `<pre>${esc(a.summary)}</pre>`,
-          esc(a.ticket ?? ''),
-          esc(a.state),
-          a.state === 'pending'
-            ? `${button('Approve', 'POST', `/api/actions/${a.id}/approve`)} ${button('Reject', 'POST', `/api/actions/${a.id}/reject`, undefined, true)}`
-            : '',
-        ]),
-        'No actions waiting.',
-      ),
-    );
-  });
-
-  app.get('/sync', async (_req, reply) =>
-    html(
-      reply,
-      '/sync',
-      'Sync',
-      table(
-        ['Source', 'Status', 'Last run', 'Next run', 'Message', ''],
-        scheduler
-          .states()
-          .map((s) => [
-            esc(s.source),
-            `<span class="${s.status === 'error' ? 'bad' : s.status === 'ok' ? 'ok' : 'muted'}">${esc(s.status)}</span>${s.failures ? ` <span class="warn">backing off ×${s.failures}</span>` : ''}`,
-            esc(s.lastRunAt?.slice(0, 19).replace('T', ' ') ?? 'never'),
-            esc(
-              !s.nextRunAt
-                ? 'paused (off hours)'
-                : Date.parse(s.nextRunAt) <= Date.now() + 1000
-                  ? 'now'
-                  : new Date(s.nextRunAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            ),
-            esc(s.message ?? ''),
-            button('Run now', 'POST', `/api/sync/${s.source}/run`, undefined, true),
-          ]),
-      ),
-    ),
-  );
-
-  app.get('/settings', async (_req, reply) => {
-    const accounts = await ctx.gh.accounts().catch(() => []);
-    const s = ctx.settings;
-    const body =
-      card(
-        'GitHub accounts (gh)',
-        table(
-          ['Host', 'Login', 'Active', 'Token', ''],
-          accounts.map((a) => [
-            esc(a.host),
-            esc(a.login),
-            a.active ? '<span class="ok">active</span>' : '',
-            esc(a.tokenSource ?? ''),
-            `${a.active ? '' : button('Switch', 'POST', '/api/github/switch', { login: a.login, host: a.host })} ${button('Log out', 'POST', '/api/github/logout', { login: a.login, host: a.host }, true)}`,
-          ]),
-          'gh has no accounts. Run: orgspec github login',
-        ) +
-          `<p>${button('Set up git credentials', 'POST', '/api/github/setup-git', {}, true)}</p>
-<h2>Automatic switching</h2><label><input type="checkbox" id="as" ${s.github.autoSwitch ? 'checked' : ''}> Switch gh to the mapped account before working in a repo</label>
-<h2>Organisation → account</h2><textarea id="oa" rows="5" style="width:100%">${esc(
-            Object.entries(s.github.orgAccounts)
-              .map(([k, v]) => `${k} = ${v}`)
-              .join('\n'),
-          )}</textarea>
-<p><button onclick="const m={};document.getElementById('oa').value.split('\\n').forEach(l=>{const [k,v]=l.split('=').map(x=>x&&x.trim());if(k&&v)m[k]=v});act(this,'PUT','/api/settings/github',{autoSwitch:document.getElementById('as').checked,orgAccounts:m})">Save</button></p>`,
-      ) +
-      card(
-        'Profile',
-        `<pre>${esc(JSON.stringify({ persona: s.persona, identity: s.identity, workRoot: s.workRoot, terminal: s.terminal, sendMode: s.sendMode, quietHours: s.quietHours, reminders: s.reminders, intervals: s.intervals }, null, 2))}</pre><p class="muted">Change with <code>orgspec settings</code>.</p>`,
-      );
-    return html(reply, '/settings', 'Settings', body);
-  });
-
-  app.get('/admin', async (_req, reply) => {
-    const diags = adminCheck(ctx);
-    const personas = ctx.config()?.personas ?? [];
-    const body =
-      card(
-        'Configuration check',
-        diags.length
-          ? `<ul>${diags.map((d) => `<li class="${d.severity === 'error' ? 'bad' : 'warn'}">${esc(d.message)}</li>`).join('')}</ul>`
-          : '<p class="ok">orgspec-config is valid and every persona’s bundle verifies.</p>',
-      ) +
-      card(
-        'Personas',
-        table(
-          ['Persona', 'Version', 'Bundle', 'Available'],
-          personas.map((p) => [
-            esc(p.metadata.name),
-            esc(p.metadata.version),
-            esc(p.spec.constitution.bundle),
-            esc(ctx.configDir ? bundleVersions(ctx.configDir, p.metadata.id).join(', ') : ''),
-          ]),
-        ),
-      ) +
-      card(
-        'Jobs',
-        table(
-          ['Job', 'Kind', 'State', 'Started'],
-          listJobs(ctx, 20).map((j) => [
-            esc(j.id),
-            esc(j.kind),
-            `<span class="${j.state === 'failed' ? 'bad' : ''}">${esc(j.state)}</span>${j.error ? ` <span class="muted">${esc(j.error)}</span>` : ''}`,
-            esc(j.started_at?.slice(0, 19) ?? ''),
-          ]),
-        ),
-      );
-    return html(
-      reply,
-      '/admin',
-      'Admin',
-      `${body}<p class="muted">Compile, evaluate and publish with <code>orgspec admin compile</code>, <code>orgspec admin eval</code> and <code>orgspec admin publish</code>.</p>`,
-    );
-  });
-
+  const started = new Date().toISOString();
+  registerShellRoutes(app, ctx, { started });
+  registerIcRoutes(app, ctx);
+  registerSharedRoutes(app, ctx);
   registerTeamRoutes(app, ctx);
 
   await app.listen({ host: '127.0.0.1', port: o.port ?? 0 });
@@ -488,7 +201,12 @@ export async function startDaemon(
   let reminderTimer: NodeJS.Timeout | undefined;
   if (o.scheduler !== false) {
     scheduler.start();
-    reminderTimer = setInterval(() => void deliverReminders(ctx).catch(() => undefined), 60_000);
+    reminderTimer = setInterval(() => {
+      void computeReminders(ctx)
+        .catch(() => undefined)
+        .then(() => deliverReminders(ctx, new Date(), { baseUrl: `http://127.0.0.1:${port}` }))
+        .catch(() => undefined);
+    }, 60_000);
     reminderTimer.unref();
   }
 

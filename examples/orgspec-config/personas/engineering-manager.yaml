@@ -34,5 +34,5 @@ spec:
     - server: calendar
       tools: [ "list_events", "free_busy", "create_event" ]
       confirm: [ "create_event" ]
-  views: [ review-queue, team, inbox, decisions ]
+  views: [ review-queue, team, task-inbox, slack-summarizer, my-agents, decisions ]
   reminders: [ oneonone-action, approvals ]

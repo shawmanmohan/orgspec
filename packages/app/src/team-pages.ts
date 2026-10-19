@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { AppContext } from './context.js';
-import { button, card, esc, page } from './dashboard.js';
+import { button, card, esc } from './dashboard.js';
 import {
   addAction,
   addAgendaItem,
@@ -19,6 +19,7 @@ import {
   sharedPage,
   suggestSlots,
 } from './oneonone.js';
+import { layout } from './web/ui.js';
 
 const when = (iso?: string) =>
   iso
@@ -50,7 +51,7 @@ ul.clean{margin:0;padding-left:18px}ul.clean li{margin:4px 0}
 /** "Team & 1:1s" and the 1:1 prep page for engineering managers. */
 export function registerTeamRoutes(app: FastifyInstance, ctx: AppContext): void {
   const html = (reply: FastifyReply, path: string, title: string, body: string) =>
-    reply.type('text/html').send(page(path, title, TEAM_CSS + body));
+    reply.type('text/html').send(layout(ctx, path, title, TEAM_CSS + body));
   const report = (email: string) => findReport(ctx, decodeURIComponent(email));
 
   // ---- API ----

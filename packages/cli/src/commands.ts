@@ -525,22 +525,25 @@ export function registerAppCommands(program: Command, h: CommandHelpers): void {
   }
   program
     .command('summarize')
-    .description('summarise a Slack channel or thread')
-    .argument('<channel>')
-    .option('--since <ts>', 'Slack timestamp to start from')
-    .option('--thread <ts>')
-    .action(async (channel: string, o: { since?: string; thread?: string }) => {
-      const s = await summarizeSlack(ctx(), {
-        channel,
-        ...(o.since ? { since: o.since } : {}),
-        ...(o.thread ? { thread: o.thread } : {}),
-      });
-      emit(s, () =>
+    .description('summarise Slack channels or threads')
+    .argument('[channels...]', 'up to 5 channel IDs or names')
+    .option('--link <url>', 'thread or message link (repeatable, up to 20)', list)
+    .addOption(new Option('--window <w>', 'time window').choices(['24h', '7d', '30d']).default('7d'))
+    .action(async (channels: string[], o: { link?: string[]; window: '24h' | '7d' | '30d' }) => {
+      const s = await summarizeSlack(ctx(), { channels, ...(o.link ? { links: o.link } : {}), window: o.window });
+      emit({ ...s }, () =>
         [
-          s.summary,
-          ...s.decisions.map((d) => `  decision: ${d.text}${d.by ? ` (${d.by})` : ''}`),
+          `${s.messages} messages · ${s.range.from.slice(0, 10)}–${s.range.to.slice(0, 10)}`,
+          ...s.tasks.map(
+            (t, i) =>
+              `  task: ${t.text}${t.owner ? ` · ${t.owner}` : ''}${t.due ? ` · due ${t.due}` : ''}${s.tasksExisting[i] ? ` (exists: ${s.tasksExisting[i]})` : ''}`,
+          ),
+          ...s.summary.map((x) => `  ${x.topic}: ${x.text}`),
+          ...s.decisions.map(
+            (d, i) =>
+              `  decision: ${d.text}${d.by ? ` (${d.by})` : ''}${s.decisionConflicts[i] ? ` — conflicts with ${s.decisionConflicts[i]?.adrId}` : ''}`,
+          ),
           ...s.questions.map((q) => `  question: ${q.text}`),
-          ...s.followUps.map((f) => `  follow-up: ${f.text}${f.owner ? ` → ${f.owner}` : ''}`),
         ].join('\n'),
       );
     });

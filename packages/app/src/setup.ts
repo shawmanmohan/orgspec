@@ -52,6 +52,10 @@ export async function setup(
       }
     }
   }
+  ctx
+    .db()
+    .prepare("insert or replace into kv (key, value) values ('personas:eligible', ?)")
+    .run(JSON.stringify(eligible));
   const persona = o.persona ?? (eligible.length === 1 ? eligible[0] : undefined);
   if (persona) {
     if (!eligible.includes(persona))

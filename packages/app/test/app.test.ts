@@ -349,8 +349,26 @@ describe('daemon', () => {
       const login = await fetch(`${d.url}/login?token=${d.info.token}`, { redirect: 'manual' });
       const cookie = login.headers.get('set-cookie') ?? '';
       expect(cookie).toContain('HttpOnly');
-      const home = await fetch(`${d.url}/admin`, { headers: { cookie: cookie.split(';')[0] ?? '' } });
-      expect(await home.text()).toContain('every persona’s bundle verifies');
+      const jar = { cookie: cookie.split(';')[0] ?? '' };
+      const ws = await (await fetch(`${d.url}/workspace`, { headers: jar })).text();
+      expect(ws).toContain('Choose your workspace');
+      expect(ws).toContain('Engineer');
+      // Every page renders without a server error.
+      for (const path of [
+        '/work',
+        '/agents',
+        '/inbox',
+        '/slack',
+        '/evidence',
+        '/decisions',
+        '/team',
+        '/actions',
+        '/reminders',
+        '/settings',
+      ]) {
+        const r = await fetch(`${d.url}${path}`, { headers: jar });
+        expect([path, r.status]).toEqual([path, 200]);
+      }
       const a = pendingActions(ctx.db()).create({
         server: 'slack',
         tool: 'chat_post_message',

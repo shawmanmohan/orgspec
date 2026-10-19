@@ -4,7 +4,7 @@ import { findWorkspace, listChangeIds } from '@orgspec/spec-engine';
 import type { AppContext } from './context.js';
 import { indexDecisions, listDecisions } from './decisions.js';
 import { syncGates } from './gates.js';
-import { syncDmInbox } from './inbox.js';
+import { pruneInbox, syncDmInbox } from './inbox.js';
 import { listPackets } from './packet.js';
 import { remind } from './reminders.js';
 import { reviewPrd } from './reviews.js';
@@ -135,6 +135,7 @@ export function syncJobs(ctx: AppContext): Record<string, SyncJob> {
     },
     'slack.dms': async () => {
       const r = await syncDmInbox(ctx);
+      pruneInbox(ctx);
       return `${r.messages} new message(s), ${r.tasks} task(s)`;
     },
     'github.prs': async () => {

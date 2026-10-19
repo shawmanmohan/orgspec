@@ -13,9 +13,28 @@ export interface DecisionRecord {
   scopeCapabilities: string[];
   body: string;
   file: string;
+  date?: string;
+  owner?: string;
+  review?: string;
+  sources: string[];
+  supersedes?: string;
+  supersededBy?: string;
+  /** Markdown sections by heading (Decision, Context, Options considered, Consequences…). */
+  sections: Record<string, string>;
 }
 
 const FRONT = /^---\n([\s\S]*?)\n---\n?/;
+
+export function sectionsOf(body: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const parts = body.split(/^##\s+/m).slice(1);
+  for (const p of parts) {
+    const nl = p.indexOf('\n');
+    const head = (nl < 0 ? p : p.slice(0, nl)).trim();
+    out[head] = (nl < 0 ? '' : p.slice(nl + 1)).replace(/<!--[\s\S]*?-->/g, '').trim();
+  }
+  return out;
+}
 
 export function parseDecision(text: string, file: string, repo: string): DecisionRecord | undefined {
   const m = FRONT.exec(text);
@@ -25,6 +44,13 @@ export function parseDecision(text: string, file: string, repo: string): Decisio
   const adrId = String(meta.id ?? /^(ADR-\d+)/i.exec(file.split('/').pop() ?? '')?.[1] ?? '').toUpperCase();
   if (!adrId || !title) return undefined;
   const scope = (meta.scope ?? {}) as { paths?: string[]; capabilities?: string[] };
+  const str = (v: unknown) => (v === undefined || v === null || v === '' ? undefined : String(v));
+  const date = str(meta.date);
+  const owner =
+    str(meta.owner) ?? (Array.isArray(meta.deciders) && meta.deciders.length ? String(meta.deciders[0]) : undefined);
+  const review = str(meta.review);
+  const supersedes = str(meta.supersedes);
+  const supersededBy = str(meta.superseded_by);
   return {
     adrId,
     repo,
@@ -34,6 +60,13 @@ export function parseDecision(text: string, file: string, repo: string): Decisio
     scopeCapabilities: scope.capabilities ?? [],
     body: body.trim(),
     file,
+    sources: Array.isArray(meta.sources) ? meta.sources.map(String) : [],
+    sections: sectionsOf(body),
+    ...(date ? { date } : {}),
+    ...(owner ? { owner } : {}),
+    ...(review ? { review } : {}),
+    ...(supersedes ? { supersedes } : {}),
+    ...(supersededBy ? { supersededBy } : {}),
   };
 }
 
@@ -49,11 +82,25 @@ export function listDecisions(ws: Workspace, repo: string): DecisionRecord[] {
     });
 }
 
+export interface NewDecision {
+  title: string;
+  deciders?: string[];
+  owner?: string;
+  paths?: string[];
+  capabilities?: string[];
+  change?: string;
+  decision?: string;
+  context?: string;
+  options?: string;
+  review?: string;
+  sources?: string[];
+  supersedes?: string;
+}
+
+const todo = (hint: string) => `<!-- orgspec:todo ${hint} -->`;
+
 /** `orgspec decision new`: the next ADR number in this repo, with the standard sections. */
-export function newDecision(
-  ws: Workspace,
-  o: { title: string; deciders?: string[]; paths?: string[]; capabilities?: string[]; change?: string },
-): string {
+export function newDecision(ws: Workspace, o: NewDecision): string {
   const nums = exists(ws.decisionsDir)
     ? readdirSync(ws.decisionsDir).flatMap((f) => {
         const n = /^ADR-(\d+)/i.exec(f)?.[1];
@@ -64,38 +111,50 @@ export function newDecision(
   const id = `ADR-${String(n).padStart(4, '0')}`;
   const file = join(ws.decisionsDir, `${id}-${slugify(o.title)}.md`);
   const today = new Date().toISOString().slice(0, 10);
+  const q = (v: string) => JSON.stringify(v);
   writeFileAtomic(
     file,
     `---
 id: ${id}
-title: ${JSON.stringify(o.title)}
+title: ${q(o.title)}
 status: proposed
 date: ${today}
-deciders: [${(o.deciders ?? []).join(', ')}]
-${o.change ? `change: ${o.change}\n` : ''}scope:
-  paths: [${(o.paths ?? []).map((p) => JSON.stringify(p)).join(', ')}]
+${o.owner ? `owner: ${q(o.owner)}\n` : ''}deciders: [${(o.deciders ?? []).map(q).join(', ')}]
+${o.review ? `review: ${o.review}\n` : ''}${o.supersedes ? `supersedes: ${o.supersedes}\n` : ''}${o.change ? `change: ${o.change}\n` : ''}sources: [${(o.sources ?? []).map(q).join(', ')}]
+scope:
+  paths: [${(o.paths ?? []).map(q).join(', ')}]
   capabilities: [${(o.capabilities ?? []).join(', ')}]
 ---
 
 # ${o.title}
 
+## Decision
+
+${o.decision?.trim() || todo('What was decided, and by whom.')}
+
 ## Context
 
-<!-- orgspec:todo What forces are at play? Link the discussion. -->
+${o.context?.trim() || todo('What forces are at play? Link the discussion.')}
 
 ## Options considered
 
-1. <!-- orgspec:todo -->
-
-## Decision
-
-<!-- orgspec:todo What was decided, and by whom. -->
+${o.options?.trim() || `1. ${todo('')}`}
 
 ## Consequences
 
-<!-- orgspec:todo What becomes easier or harder. -->
+${todo('What becomes easier or harder.')}
 `,
   );
+  const sup = o.supersedes;
+  if (sup) {
+    // The superseded record stays in history and points forward; it becomes "superseded" when this merges.
+    const old = readdirSync(ws.decisionsDir).find((f) => f.toUpperCase().startsWith(`${sup.toUpperCase()}-`));
+    if (old) {
+      const path = join(ws.decisionsDir, old);
+      const text = readText(path);
+      if (!/^superseded_by:/m.test(text)) writeFileAtomic(path, text.replace(/^---\n/, `---\nsuperseded_by: ${id}\n`));
+    }
+  }
   return file;
 }
 

@@ -1,10 +1,10 @@
 {
-  "persona": "product-manager",
+  "persona": "project-manager",
   "version": "1.0.0",
-  "sha256": "sha256:271e18f2f06d2c1c456850e3da517be08aa958069e0bf4936111c25fda4ba3bb",
+  "sha256": "sha256:b01c64abcc44be2ea73c75da9b3e60a9ef2f2ff8e894347bbbedb5bc20db7a91",
   "files": {
-    "constitution.md": "sha256:e2f415d7486c1702e5477550a214e583a707388f9f66dacc00da76aed3078c71",
-    "rules.json": "sha256:b4bdd1eddb409d1515597ac7ba9200c818c1dee36d4e5a6db04c162f5ffdb0bd",
+    "constitution.md": "sha256:166c7079efad2822f96649a19b6d91d5270840ea6641a82cb6935a7d04f4454d",
+    "rules.json": "sha256:860258420044e58afc9df8c3935120a374b1a0132132525580f69509f43add78",
     "checks.json": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
     "rubrics/prd.json": "sha256:ea7cb1e1fae8f6bd181cb8cb10178b432a9683b7d8e5474de5cf15bb1d5fc032"
   },

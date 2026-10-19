@@ -30,5 +30,13 @@ spec:
       tools: [ "list_runs", "get_run", "get_run_logs" ]
   github:
     gh: [ pr, api, repo ]
-  views: [ my-work, reviews, decisions ]
+  views:
+    [
+      my-work,
+      my-agents,
+      task-inbox,
+      slack-summarizer,
+      my-evidence,
+      decisions
+    ]
   reminders: [ ci-failed, approvals ]

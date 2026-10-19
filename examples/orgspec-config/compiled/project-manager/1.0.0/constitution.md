@@ -1,4 +1,4 @@
-# Constitution: product-manager 1.0.0
+# Constitution: project-manager 1.0.0
 Compiled from the organisation’s Confluence pages and approved by a process owner. Rules marked enforced are checked by hooks or CI; advisory rules are guidance.
 ## Review rubric
 

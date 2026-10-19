@@ -1,6 +1,6 @@
 apiVersion: orgspec/v1
 kind: ConstitutionOverlay
-metadata: { id: product-manager, version: 1.0.0, owners: [pm-process-owners] }
+metadata: { id: project-manager, version: 1.0.0, owners: [pm-process-owners] }
 spec:
   layer: persona
   sources:

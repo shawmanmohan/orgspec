@@ -31,7 +31,7 @@ const em = [
   { id: 'em.review.design-approval', title: 'Design approvals need a staff engineer', statement: 'Managers do not approve high-tier designs on behalf of a staff engineer.', enforcement: 'advisory', severity: 'warning', source: src('100002', 'High-risk designs are approved by a staff engineer') },
 ];
 
-for (const [persona, rules] of [['engineer', engineer], ['product-manager', pm], ['engineering-manager', em]]) {
+for (const [persona, rules] of [['engineer', engineer], ['project-manager', pm], ['engineering-manager', em]]) {
   const m = writeBundle(join(root, 'compiled', persona, '1.0.0'), {
     persona,
     version: '1.0.0',
