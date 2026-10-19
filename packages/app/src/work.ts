@@ -164,9 +164,11 @@ export async function mySessions(ctx: AppContext): Promise<AgentSession[]> {
 
 /** Readable tail of a background session's terminal output (ANSI and spinner noise removed). */
 export function cleanLogs(raw: string, lines = 14): string[] {
+  const ESC = String.fromCharCode(27);
+  const BEL = String.fromCharCode(7);
   const text = raw
-    .replace(/\x1b\][^\x07]*\x07/g, '')
-    .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ' ')
+    .replace(new RegExp(`${ESC}\\][^${BEL}]*${BEL}`, 'g'), '')
+    .replace(new RegExp(`${ESC}\\[[0-9;?]*[A-Za-z]`, 'g'), ' ')
     .replace(/[⠀-⣿✢✳✶✻✽·⏺⎿]/g, ' ');
   return text
     .split(/\r?\n/)
