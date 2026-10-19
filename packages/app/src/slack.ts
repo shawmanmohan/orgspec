@@ -3,7 +3,7 @@ import { nowIso, openJson, sealJson } from '@orgspec/core';
 import type { SlackMessage } from '@orgspec/integrations';
 import { z } from 'zod';
 import type { AppContext } from './context.js';
-import { searchDecisions } from './decisions.js';
+import { overlap, searchDecisions } from './decisions.js';
 import { promptWith, runAgentJob } from './jobs.js';
 import { remind } from './reminders.js';
 
@@ -111,12 +111,9 @@ A decision is only something people explicitly agreed; name who agreed. Say "own
   }
   const decisionConflicts: Record<number, { adrId: string; title: string }> = {};
   for (const [i, d] of s.decisions.entries()) {
-    const words = d.text
-      .split(/\W+/)
-      .filter((x) => x.length > 4)
-      .slice(0, 4)
-      .join(' ');
-    const hit = words ? searchDecisions(ctx.db(), words, 1).find((h) => h.status !== 'superseded') : undefined;
+    const hit = searchDecisions(ctx.db(), d.text, 3, { any: true }).find(
+      (h) => h.status !== 'superseded' && overlap(d.text, h.title) >= 2,
+    );
     if (hit) decisionConflicts[i] = { adrId: hit.adrId, title: hit.title };
   }
   const ts = all.map((m) => Number(m.ts)).sort((a, b) => a - b);

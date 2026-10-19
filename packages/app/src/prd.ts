@@ -48,7 +48,7 @@ export interface PrdReview {
   summary: string;
   completeness: number;
   dependencies: z.infer<typeof PrdReviewSchema>['dependencies'];
-  feasibility: z.infer<typeof PrdReviewSchema>['feasibility'];
+  feasibility: (z.infer<typeof PrdReviewSchema>['feasibility'][number] & { verified?: boolean })[];
   dropped: number;
 }
 
@@ -80,12 +80,8 @@ export async function reviewPrdFull(ctx: AppContext, pageId: string): Promise<Pr
   if (!bundle) throw new Error('No usable constitution bundle; choose a persona first');
   const rubric = rubricFor(bundle.rules, 'prd');
   if (!rubric.length) throw new Error('The constitution has no PRD rubric');
-  const words = page.title
-    .split(/\W+/)
-    .filter((w) => w.length > 4)
-    .slice(0, 5)
-    .join(' ');
-  const decisions = words ? searchDecisions(ctx.db(), words, 8) : [];
+  const headings = [...text.matchAll(/^#{1,3}\s+(.+)$/gm)].map((m) => m[1]).join(' ');
+  const decisions = searchDecisions(ctx.db(), `${page.title} ${headings} ${text.slice(0, 400)}`, 10, { any: true });
   const author = /\b(?:author|owner)\s*:?\s*([A-Z][a-z]+(?: [A-Z][a-z]+)?)/.exec(text)?.[1];
   const job = await runAgentJob(ctx, {
     kind: 'review:prd',
@@ -118,9 +114,13 @@ ${rubric.map((r) => `- ${r.id}: ${r.question}`).join('\n')}`,
     kept.map((f) => ({ ...f, confidence: f.confidence })),
     rubric.map((r) => ({ id: r.id, severity: sev.get(r.id) === 'major' ? 'blocking' : r.severity })),
   );
-  // Feasibility blockers must name a real decision when they claim a conflict.
+  // A blocker that cites a decision OrgSpec can't find stays a blocker (dropping it could hide a real
+  // concern) but is marked unverified so the reviewer checks it.
   const known = new Set(decisions.map((d) => d.adrId));
-  const feasibility = job.data.feasibility.filter((f) => !f.adr || known.has(f.adr) || isGrounded(f.adr, text));
+  const feasibility = job.data.feasibility.map((f) => ({
+    ...f,
+    verified: !f.adr || known.has(f.adr) || isGrounded(f.adr, text),
+  }));
   const epic = epicOf(page.title, text);
   const review: PrdReview = {
     pageId,
@@ -131,7 +131,7 @@ ${rubric.map((r) => `- ${r.id}: ${r.question}`).join('\n')}`,
     completeness: job.data.completeness,
     dependencies: job.data.dependencies,
     feasibility,
-    dropped: dropped.length + (job.data.feasibility.length - feasibility.length),
+    dropped: dropped.length,
     rubricVersion: bundle.manifest.version,
     ...(author ? { author } : {}),
     ...(epic ? { epic } : {}),

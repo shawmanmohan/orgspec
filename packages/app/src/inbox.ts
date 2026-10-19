@@ -142,24 +142,28 @@ excerpt: a short quote of the message. why: one short reason for the priority (d
         (e) => e.state === 'open' && e.kind === t.kind && e.title.toLowerCase() === t.title.toLowerCase(),
       );
       if (dup) {
-        const merged = { ...stripMeta(dup), sources: [...dup.sources, { conversation: t.conversation, ts: t.ts }] };
+        dup.sources = [...dup.sources, { conversation: t.conversation, ts: t.ts }];
         db.prepare('update inbox_tasks set payload = ?, updated_at = ? where id = ?').run(
-          sealJson(key, merged),
+          sealJson(key, stripMeta(dup)),
           nowIso(),
           dup.id,
         );
         continue;
       }
+      const id = `inb_${randomUUID().slice(0, 10)}`;
+      const sources = [{ conversation: t.conversation, ts: t.ts }];
       ins.run(
-        `inb_${randomUUID().slice(0, 10)}`,
+        id,
         t.conversation,
         t.kind,
-        sealJson(key, { ...t, sources: [{ conversation: t.conversation, ts: t.ts }] }),
+        sealJson(key, { ...t, sources }),
         t.group || t.jira || '',
         6 - t.priority,
         nowIso(),
         nowIso(),
       );
+      // Later tasks in this batch can merge into this one.
+      existing.push({ ...t, sources, id, state: 'open', pinned: false, createdAt: nowIso() });
       added++;
     }
   }

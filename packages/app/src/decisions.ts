@@ -170,16 +170,35 @@ export function indexDecisions(db: Db, repo: string, records: readonly DecisionR
 }
 
 /** FTS5 query built from plain words, so user input never becomes query syntax. */
-const ftsQuery = (q: string) =>
-  q
-    .split(/\s+/)
-    .map((w) => w.replace(/["*^():]/g, ''))
-    .filter(Boolean)
-    .map((w) => `"${w}"*`)
-    .join(' ');
+const STOP = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'from', 'into', 'when', 'should', 'must', 'will']);
 
-export function searchDecisions(db: Db, query: string, limit = 10) {
-  const q = ftsQuery(query);
+/** A crude stem so "retries", "retry" and "retrying" meet: drop common endings, keep at least four letters. */
+export const stem = (w: string): string => {
+  const x = w.toLowerCase().replace(/(ies|ing|ed|es|s)$/, '');
+  return x.length >= 4 ? x : w.toLowerCase().slice(0, Math.max(4, Math.min(w.length, 4)));
+};
+
+const terms = (q: string, o: { any?: boolean }) =>
+  q
+    .split(/[^\p{L}\p{N}-]+/u)
+    .map((w) => w.replace(/["*^():]/g, ''))
+    .filter((w) => w && !(o.any && (w.length < 4 || STOP.has(w.toLowerCase()))))
+    .map((w) => (o.any ? stem(w) : w));
+
+/** FTS5 query built from plain words, so user input never becomes query syntax. `any` ORs stemmed words. */
+const ftsQuery = (q: string, o: { any?: boolean } = {}) =>
+  terms(q, o)
+    .map((w) => `"${w}"*`)
+    .join(o.any ? ' OR ' : ' ');
+
+/** How many of the query's stemmed words appear in a text (for judging OR matches). */
+export const overlap = (query: string, text: string): number => {
+  const t = text.toLowerCase();
+  return [...new Set(terms(query, { any: true }))].filter((w) => t.includes(w)).length;
+};
+
+export function searchDecisions(db: Db, query: string, limit = 10, o: { any?: boolean } = {}) {
+  const q = ftsQuery(query, o);
   if (!q) return [];
   const rows = db
     .prepare(

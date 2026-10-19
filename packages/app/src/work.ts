@@ -12,7 +12,7 @@ import {
 } from '@orgspec/spec-engine';
 import { artifactHashes, readApprovals } from './approvals.js';
 import type { AppContext } from './context.js';
-import { searchDecisions } from './decisions.js';
+import { overlap, searchDecisions } from './decisions.js';
 import { listPackets } from './packet.js';
 import { currentSession, type TicketSession } from './session.js';
 
@@ -283,19 +283,10 @@ export async function ticketDetail(ctx: AppContext, key: string): Promise<Ticket
   const rules = ctx.bundle().bundle?.rules ?? [];
   const spec = specState(ctx, key, issue.type, rules);
   const tier: Tier = spec.tier ?? (schema === 'feature' ? 'medium' : 'low');
-  const words = issue.summary
-    .split(/\W+/)
-    .filter((w) => w.length > 4)
-    .slice(0, 4)
-    .join(' ');
-  const decisions = words
-    ? searchDecisions(ctx.db(), words, 3).map((d) => ({
-        adrId: d.adrId,
-        title: d.title,
-        status: d.status,
-        file: d.file,
-      }))
-    : [];
+  const decisions = searchDecisions(ctx.db(), issue.summary, 5, { any: true })
+    .filter((d) => overlap(issue.summary, `${d.title} ${d.snippet}`) >= 2)
+    .slice(0, 3)
+    .map((d) => ({ adrId: d.adrId, title: d.title, status: d.status, file: d.file }));
   const pdb = ctx.privateDb();
   const kp = await ctx.key();
   const slack = (
