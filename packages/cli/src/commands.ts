@@ -15,6 +15,7 @@ import {
   createPacket,
   doctor,
   executePending,
+  findReport as findReportIn,
   indexDecisions,
   installService,
   listDecisions,
@@ -565,11 +566,7 @@ export function registerAppCommands(program: Command, h: CommandHelpers): void {
 
   // ---------- 1:1s ----------
   const one = program.command('1on1').description('1:1 roster, briefs, shared agendas and private notes');
-  const findReport = async (email: string) => {
-    const r = (await roster(ctx())).find((x) => x.email === email);
-    if (!r) throw new Error(`${email} is not one of your direct reports`);
-    return r;
-  };
+  const findReport = (email: string) => findReportIn(ctx(), email);
   one.command('roster').action(async () => {
     const r = await roster(ctx());
     emit({ roster: r }, () =>
@@ -583,11 +580,14 @@ export function registerAppCommands(program: Command, h: CommandHelpers): void {
     .argument('<email>')
     .action(async (email: string) => {
       const b = await prepareBrief(ctx(), await findReport(email));
-      emit(b, () =>
+      emit({ ...b }, () =>
         [
-          ...b.highlights.map((x) => `+ ${x.text} (${x.source})`),
-          ...b.blockers.map((x) => `! ${x.text} (${x.source})`),
-          ...b.talkingPoints.map((t) => `? ${t}`),
+          `Work since ${b.since}: ${b.workSince}`,
+          ...b.strengths.map((x) => `+ ${x.text} (${x.source})`),
+          ...b.growth.map((x) => `~ ${x.text} (${x.source})`),
+          ...b.goals.map((g) => `goal: ${g.goal} — ${g.progress}`),
+          ...b.questions.map((t) => `? ${t}`),
+          'A preparation aid, not an evaluation.',
         ].join('\n'),
       );
     });

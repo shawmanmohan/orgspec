@@ -20,3 +20,4 @@ export * from './service.js';
 export * from './session.js';
 export * from './setup.js';
 export * from './sync.js';
+export * from './team-pages.js';

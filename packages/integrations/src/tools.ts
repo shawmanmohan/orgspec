@@ -157,6 +157,18 @@ export const DEFAULT_OPERATIONS: Record<string, ToolMapping> = {
   'hr.listReports': { tool: 'hr__list_reports', args: { managerEmail: '$managerEmail' } },
   'hr.getTimeOff': { tool: 'hr__get_time_off', args: { email: '$email', from: '$from', to: '$to' } },
   'calendar.listEvents': { tool: 'calendar__list_events', args: { from: '$from', to: '$to', query: '$query' } },
+  'calendar.freeBusy': { tool: 'calendar__free_busy', args: { attendees: '$attendees', from: '$from', to: '$to' } },
+  'calendar.createEvent': {
+    tool: 'calendar__create_event',
+    args: {
+      title: '$title',
+      start: '$start',
+      end: '$end',
+      attendees: '$attendees',
+      recurrence: '$recurrence',
+      description: '$description',
+    },
+  },
 };
 
 /** Runs logical operations through a ToolCaller using the org's mapping. */

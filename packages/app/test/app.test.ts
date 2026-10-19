@@ -420,3 +420,32 @@ describe('live change tier', () => {
     expect(merge()).toBe('deny');
   });
 });
+
+describe('dashboard buttons', () => {
+  it('posts without a body (Approve, Run now) and with one (agenda)', async () => {
+    const { dir } = orgConfig();
+    const ctx = makeContext({ configDir: dir });
+    const d = await startDaemon(ctx, { scheduler: false, socket: false });
+    try {
+      const a = pendingActions(ctx.db()).create({
+        server: 'slack',
+        tool: 'chat_post_message',
+        args: {},
+        summary: 'x',
+        persona: 'engineer',
+      });
+      // Exactly what the dashboard's api() helper sends for a body-less button.
+      const r = await fetch(`${d.url}/api/actions/${a.id}/approve`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${d.info.token}` },
+      });
+      expect(r.status).toBe(200);
+      const html = await (
+        await fetch(`${d.url}/actions`, { headers: { authorization: `Bearer ${d.info.token}` } })
+      ).text();
+      expect(html).toContain('body === undefined ? {method}');
+    } finally {
+      await d.close();
+    }
+  });
+});

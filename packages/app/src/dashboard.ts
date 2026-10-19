@@ -12,7 +12,7 @@ export const NAV: [string, string][] = [
   ['/inbox', 'Inbox'],
   ['/reviews', 'Reviews'],
   ['/risk', 'Risk'],
-  ['/oneonone', '1:1s'],
+  ['/team', 'Team & 1:1s'],
   ['/decisions', 'Decisions'],
   ['/actions', 'Approvals'],
   ['/sync', 'Sync'],
@@ -23,7 +23,7 @@ export const NAV: [string, string][] = [
 const CSS = `
 :root{--bg:#f7f7f5;--fg:#1d1d1b;--muted:#6b6b66;--card:#fff;--line:#e4e4df;--accent:#2f5bea;--bad:#c2372c;--warn:#b7791f;--ok:#2f855a}
 @media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ececea;--muted:#9a9a94;--card:#1f1f1d;--line:#2e2e2b;--accent:#7b9bff;--bad:#ef6b5f;--warn:#e0a84a;--ok:#5fbf8a}}
-*{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg)}
+*{box-sizing:border-box}a{color:var(--accent)}a:hover{text-decoration:underline}body{margin:0;font:14px/1.5 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg)}
 header{display:flex;gap:16px;align-items:center;padding:10px 20px;border-bottom:1px solid var(--line);background:var(--card);flex-wrap:wrap}
 header b{margin-right:8px}header a{color:var(--muted);text-decoration:none}header a.on{color:var(--fg);font-weight:600}
 main{max-width:1100px;margin:0 auto;padding:20px}h1{font-size:20px;margin:0 0 16px}h2{font-size:15px;margin:24px 0 8px}
@@ -39,7 +39,7 @@ pre{white-space:pre-wrap;background:var(--bg);padding:8px;border-radius:6px}
 
 const JS = `
 async function api(method, path, body){
-  const r = await fetch(path, {method, headers:{'content-type':'application/json'}, body: body ? JSON.stringify(body) : undefined});
+  const r = await fetch(path, body === undefined ? {method} : {method, headers:{'content-type':'application/json'}, body: JSON.stringify(body)});
   const t = await r.text(); let j; try { j = JSON.parse(t) } catch { j = {message: t} }
   if(!r.ok){ alert(j.message || r.statusText); throw new Error(j.message) }
   return j;

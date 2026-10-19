@@ -1,0 +1,38 @@
+# Engineering managers: review queue, team and 1:1s, inbox, decisions.
+apiVersion: orgspec/v1
+kind: Persona
+metadata:
+  id: engineering-manager
+  name: Engineering manager
+  version: 1.0.0
+  owners: [ eng-process-owners ]
+spec:
+  eligibility:
+    teams: [] # for example [acme/engineering-managers]
+  constitution:
+    bundle: compiled/engineering-manager/1.0.0
+    sha256: "sha256:fb930b5cdab3b2483cd78b279020a0ca62e39a07e88343bdb29a88432edb1dcf"
+  mcp:
+    - server: atlassian
+      tools:
+        [
+          "getJiraIssue",
+          "searchJiraIssuesUsingJql",
+          "getConfluencePage",
+          "createConfluencePage",
+          "updateConfluencePage",
+          "setConfluencePageRestrictions"
+        ]
+      confirm:
+        [
+          "createConfluencePage",
+          "updateConfluencePage",
+          "setConfluencePageRestrictions"
+        ]
+    - server: hr
+      tools: [ "get_person", "list_reports", "get_time_off" ]
+    - server: calendar
+      tools: [ "list_events", "free_busy", "create_event" ]
+      confirm: [ "create_event" ]
+  views: [ review-queue, team, inbox, decisions ]
+  reminders: [ oneonone-action, approvals ]

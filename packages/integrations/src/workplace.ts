@@ -174,9 +174,22 @@ export interface CalendarEvent {
   attendees: string[];
 }
 
-/** Calendar through its MCP server: finds upcoming 1:1s. */
+/** Calendar through its MCP server: finds upcoming 1:1s and free time. Creating events goes through a confirmation. */
 export class Calendar {
   constructor(private readonly ops: Operations) {}
+
+  /** Busy intervals per attendee email. */
+  async busy(attendees: string[], from: string, to: string): Promise<Record<string, { start: string; end: string }[]>> {
+    const res = await this.ops.run('calendar.freeBusy', { attendees, from, to });
+    const out: Record<string, { start: string; end: string }[]> = {};
+    const cals = (pick<Record<string, unknown>>(res, 'calendars', 'busy') ?? {}) as Record<string, unknown>;
+    for (const a of attendees) {
+      const entry = cals[a];
+      const list = asArray(Array.isArray(entry) ? entry : pick(entry, 'busy'));
+      out[a] = list.map((b) => ({ start: pick<string>(b, 'start') ?? '', end: pick<string>(b, 'end') ?? '' }));
+    }
+    return out;
+  }
 
   async events(from: string, to: string, query?: string): Promise<CalendarEvent[]> {
     const res = await this.ops.run('calendar.listEvents', { from, to, query });

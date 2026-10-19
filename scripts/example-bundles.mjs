@@ -25,7 +25,13 @@ const pm = [
   { id: 'pm.prd.non-goals', title: 'PRDs list non-goals', statement: 'Every PRD lists what is out of scope.', enforcement: 'review', severity: 'warning', check: { kind: 'rubric', artifact: 'prd', question: 'Does the PRD list non-goals?' }, source: src('300001', 'List what you are not doing') },
 ];
 
-for (const [persona, rules] of [['engineer', engineer], ['product-manager', pm]]) {
+const em = [
+  { id: 'em.oneonone.not-evaluation', title: '1:1 briefs are preparation aids', statement: 'Use 1:1 briefs to prepare conversations, never as performance evidence or for pay and promotion decisions.', enforcement: 'advisory', severity: 'warning', source: src('400001', 'Briefs prepare a conversation; they are never performance evidence') },
+  { id: 'em.oneonone.shared-evidence', title: 'Reports see the same evidence', statement: 'Share brief sources with the report and invite their context before the 1:1.', enforcement: 'advisory', severity: 'warning', source: src('400001', 'the report sees the same evidence') },
+  { id: 'em.review.design-approval', title: 'Design approvals need a staff engineer', statement: 'Managers do not approve high-tier designs on behalf of a staff engineer.', enforcement: 'advisory', severity: 'warning', source: src('100002', 'High-risk designs are approved by a staff engineer') },
+];
+
+for (const [persona, rules] of [['engineer', engineer], ['product-manager', pm], ['engineering-manager', em]]) {
   const m = writeBundle(join(root, 'compiled', persona, '1.0.0'), {
     persona,
     version: '1.0.0',

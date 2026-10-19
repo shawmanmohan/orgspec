@@ -119,4 +119,14 @@ create table notes (id text primary key, subject text not null, payload text not
 create table briefs (id text primary key, report text not null, payload text not null, created_at text not null);
 `,
   },
+  {
+    version: 2,
+    sql: `
+create table oneonone_actions (
+  id text primary key, report text not null, payload text not null, state text not null default 'open',
+  created_at text not null, done_at text
+);
+create index oneonone_actions_report on oneonone_actions(report, state);
+`,
+  },
 ];

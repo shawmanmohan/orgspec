@@ -2,5 +2,7 @@
 people:
   alice@acme.io: { github: alice, slack: U01ALICE, jiraAccountId: "5b10a2844c20165700ede21g" }
   bob@acme.io: { github: bob, slack: U02BOB, jiraAccountId: "5b10ac8d82e05b22cc7d4ef5" }
+  asha.rao@acme.io: { github: asha-rao, slack: U03ASHA, jiraAccountId: "acct-asha" }
+  lena.fischer@acme.io: { github: lena-f, slack: U04LENA, jiraAccountId: "acct-lena" }
 oneOnOne:
   spaceId: "98765" # restricted Confluence space for 1:1 pages

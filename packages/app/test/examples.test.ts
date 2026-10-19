@@ -11,7 +11,11 @@ describe('examples/orgspec-config', () => {
   it('loads without diagnostics and every bundle verifies', () => {
     const cfg = loadOrgConfig(dir);
     expect(cfg.diagnostics).toEqual([]);
-    expect(cfg.personas.map((p) => p.metadata.id).sort()).toEqual(['engineer', 'product-manager']);
+    expect(cfg.personas.map((p) => p.metadata.id).sort()).toEqual([
+      'engineer',
+      'engineering-manager',
+      'product-manager',
+    ]);
     expect(cfg.overlays).toHaveLength(3);
     expect(Object.keys(cfg.integrations.servers)).toContain('ci');
     expect(cfg.waivers[0]?.id).toBe('W-1');

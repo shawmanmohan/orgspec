@@ -1,0 +1,78 @@
+{
+  "persona": "engineering-manager",
+  "version": "1.0.0",
+  "rules": [
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "em.oneonone.not-evaluation",
+      "title": "1:1 briefs are preparation aids",
+      "statement": "Use 1:1 briefs to prepare conversations, never as performance evidence or for pay and promotion decisions.",
+      "enforcement": "advisory",
+      "severity": "warning",
+      "source": {
+        "pageId": "400001",
+        "version": 1,
+        "quote": "Briefs prepare a conversation; they are never performance evidence"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "em.oneonone.shared-evidence",
+      "title": "Reports see the same evidence",
+      "statement": "Share brief sources with the report and invite their context before the 1:1.",
+      "enforcement": "advisory",
+      "severity": "warning",
+      "source": {
+        "pageId": "400001",
+        "version": 1,
+        "quote": "the report sees the same evidence"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    },
+    {
+      "rationale": "",
+      "layer": "base",
+      "id": "em.review.design-approval",
+      "title": "Design approvals need a staff engineer",
+      "statement": "Managers do not approve high-tier designs on behalf of a staff engineer.",
+      "enforcement": "advisory",
+      "severity": "warning",
+      "source": {
+        "pageId": "100002",
+        "version": 1,
+        "quote": "High-risk designs are approved by a staff engineer"
+      },
+      "appliesTo": {
+        "personas": [],
+        "tiers": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "artifacts": [],
+        "paths": []
+      }
+    }
+  ]
+}

@@ -17,6 +17,7 @@ import { listFindings, reviewPrd, setFindingStatus } from './reviews.js';
 import { executePending, scoreCachedIssues } from './risk.js';
 import { Scheduler } from './scheduler.js';
 import { syncJobs } from './sync.js';
+import { registerTeamRoutes } from './team-pages.js';
 
 export interface DaemonInfo {
   pid: number;
@@ -330,23 +331,7 @@ export async function startDaemon(
     );
   });
 
-  app.get('/oneonone', async (_req, reply) => {
-    const raw = (
-      ctx.db().prepare("select value from kv where key = 'hr:reports'").get() as { value: string } | undefined
-    )?.value;
-    const reports = raw ? (JSON.parse(raw) as { name: string; email: string; title?: string }[]) : [];
-    return html(
-      reply,
-      '/oneonone',
-      '1:1s',
-      table(
-        ['Name', 'Title', 'Email'],
-        reports.map((r) => [esc(r.name), esc(r.title ?? ''), esc(r.email)]),
-        'No direct reports found in the HR directory.',
-      ) +
-        '<p class="muted">Briefs and private notes: <code>orgspec 1on1 brief &lt;email&gt;</code>. Shared agendas live on restricted Confluence pages.</p>',
-    );
-  });
+  app.get('/oneonone', async (_req, reply) => reply.redirect('/team'));
 
   app.get('/decisions', async (req: FastifyRequest<{ Querystring: { q?: string } }>, reply) => {
     const q = req.query.q ?? '';
@@ -488,6 +473,8 @@ export async function startDaemon(
       `${body}<p class="muted">Compile, evaluate and publish with <code>orgspec admin compile</code>, <code>orgspec admin eval</code> and <code>orgspec admin publish</code>.</p>`,
     );
   });
+
+  registerTeamRoutes(app, ctx);
 
   await app.listen({ host: '127.0.0.1', port: o.port ?? 0 });
   const addr = app.server.address();

@@ -1,0 +1,30 @@
+{
+  "persona": "engineering-manager",
+  "version": "1.0.0",
+  "sha256": "sha256:fb930b5cdab3b2483cd78b279020a0ca62e39a07e88343bdb29a88432edb1dcf",
+  "files": {
+    "constitution.md": "sha256:46f86281bd74572b1254d0bda66892c9c7235a8f28ee8d75e4b629a2c9f68d51",
+    "rules.json": "sha256:50a2d2f0919e0ac90219d8448b22adf255e947acc231330eeb53145d614842b3",
+    "checks.json": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  },
+  "sources": [
+    {
+      "pageId": "400001",
+      "version": 1,
+      "title": "Page 400001",
+      "hash": "sha256:example"
+    },
+    {
+      "pageId": "100002",
+      "version": 1,
+      "title": "Page 100002",
+      "hash": "sha256:example"
+    }
+  ],
+  "compiler": {
+    "version": "example",
+    "model": "seed"
+  },
+  "builtAt": "2026-10-19T00:00:00.000Z",
+  "approvedBy": []
+}
