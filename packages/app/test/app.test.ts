@@ -340,7 +340,7 @@ describe('daemon', () => {
   it('requires the token and serves the API and dashboard', async () => {
     const { dir } = orgConfig();
     const ctx = makeContext({ configDir: dir });
-    const d = await startDaemon(ctx, { scheduler: false, socket: false });
+    const d = await startDaemon(ctx, { scheduler: false, socket: false, port: 0 });
     try {
       expect((await fetch(`${d.url}/api/status`)).status).toBe(401);
       const auth = { authorization: `Bearer ${d.info.token}` };
@@ -443,7 +443,7 @@ describe('dashboard buttons', () => {
   it('posts without a body (Approve, Run now) and with one (agenda)', async () => {
     const { dir } = orgConfig();
     const ctx = makeContext({ configDir: dir });
-    const d = await startDaemon(ctx, { scheduler: false, socket: false });
+    const d = await startDaemon(ctx, { scheduler: false, socket: false, port: 0 });
     try {
       const a = pendingActions(ctx.db()).create({
         server: 'slack',
