@@ -146,7 +146,15 @@ export async function mySessions(ctx: AppContext): Promise<AgentSession[]> {
       const packet = packets.find((p) => s.cwd && (s.cwd === p.folder || s.cwd.startsWith(`${p.folder}/`)));
       const ticket = packet?.ticket ?? /([A-Z][A-Z0-9]+-\d+)/.exec(s.name ?? '')?.[1];
       const pr = ticket ? prs.find((p) => p.branch.toLowerCase().startsWith(ticket.toLowerCase())) : undefined;
-      let state = STATE.find(([re]) => re.test(s.status))?.[1] ?? 'idle';
+      // The CLI's lifecycle state wins: blocked = waiting on you, done = finished its work.
+      let state: AgentSession['state'] =
+        s.state === 'blocked'
+          ? 'needs-input'
+          : s.state === 'stopped'
+            ? 'stopped'
+            : s.state === 'done'
+              ? 'ready'
+              : (STATE.find(([re]) => re.test(s.status))?.[1] ?? 'idle');
       if (state === 'idle' && pr) state = 'ready';
       return {
         id: s.id,

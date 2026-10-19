@@ -37,6 +37,9 @@ export const readDaemonInfo = (ctx: AppContext): DaemonInfo | undefined =>
 
 const COOKIE = 'orgspec_token';
 
+/** The dashboard's usual address: http://127.0.0.1:47320 (any free port when it is taken). */
+export const DEFAULT_PORT = 47320;
+
 /** True when the request carries this run's token (bearer header or the dashboard cookie). */
 function authorized(req: FastifyRequest, token: string): boolean {
   const header = req.headers.authorization?.replace(/^Bearer\s+/i, '');
@@ -197,7 +200,15 @@ export async function startDaemon(
   registerAdminRoutes(app, ctx);
   registerTeamRoutes(app, ctx);
 
-  await app.listen({ host: '127.0.0.1', port: o.port ?? 0 });
+  // A stable port keeps links in Slack reminders and the browser's login cookie working across restarts.
+  if (o.port !== undefined) await app.listen({ host: '127.0.0.1', port: o.port });
+  else {
+    try {
+      await app.listen({ host: '127.0.0.1', port: DEFAULT_PORT });
+    } catch {
+      await app.listen({ host: '127.0.0.1', port: 0 });
+    }
+  }
   const addr = app.server.address();
   const port = typeof addr === 'object' && addr ? addr.port : 0;
   const info: DaemonInfo = { pid: process.pid, port, token, startedAt: new Date().toISOString() };

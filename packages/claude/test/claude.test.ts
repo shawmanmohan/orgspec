@@ -187,3 +187,17 @@ describe('hook commands', () => {
     expect(s.hooks.PreToolUse[0]?.hooks[0]?.command).toBe("'/Users/a/Application Support/orgspec' hook pre-tool-use");
   });
 });
+
+describe('session state', () => {
+  it('keeps the CLI lifecycle state (blocked, stopped, done)', async () => {
+    const { normalizeSession } = await import('../src/index.js');
+    expect(normalizeSession({ id: '72f13a80', status: 'idle', state: 'blocked' })).toMatchObject({
+      id: '72f13a80',
+      state: 'blocked',
+    });
+    expect(normalizeSession({ id: 'c96d9380', state: 'stopped' })).toMatchObject({
+      status: 'stopped',
+      state: 'stopped',
+    });
+  });
+});

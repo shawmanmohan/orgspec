@@ -42,6 +42,8 @@ const RawSessionSchema = z
     sessionId: z.string().optional(),
     name: z.string().optional(),
     status: z.string().optional(),
+    /** Lifecycle: running, blocked (waiting on the person), stopped or done. */
+    state: z.string().optional(),
     kind: z.string().optional(),
     cwd: z.string().optional(),
     pid: z.number().optional(),
@@ -55,6 +57,8 @@ export interface ClaudeSession {
   sessionId?: string;
   name?: string;
   status: string;
+  /** The CLI's lifecycle state when it reports one: blocked, stopped, done… */
+  state?: string;
   kind?: string;
   cwd?: string;
   startedAt?: string;
@@ -69,7 +73,8 @@ export function normalizeSession(raw: unknown): ClaudeSession | undefined {
   const started = typeof r.startedAt === 'number' ? new Date(r.startedAt).toISOString() : r.startedAt;
   return {
     id,
-    status: r.status ?? 'unknown',
+    status: r.status ?? r.state ?? 'unknown',
+    ...(r.state ? { state: r.state } : {}),
     ...(r.sessionId ? { sessionId: r.sessionId } : {}),
     ...(r.name ? { name: r.name } : {}),
     ...(r.kind ? { kind: r.kind } : {}),
