@@ -140,7 +140,11 @@ export function cachedExtractor(ctx: AppContext, base: RuleExtractor): RuleExtra
       if (!same.length) return base.extract(input);
       const seen = new Set<string>();
       return same
-        .filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)))
+        .filter((r) => {
+          if (seen.has(r.id)) return false;
+          seen.add(r.id);
+          return true;
+        })
         .map((r) => ({
           id: r.id,
           title: r.title,

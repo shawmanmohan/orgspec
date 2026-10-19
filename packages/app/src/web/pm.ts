@@ -15,7 +15,7 @@ import {
   statusHistory,
   WEIGHTS_VERSION,
 } from '../programs.js';
-import { ago, band, button, card, day, esc, freshness, heading, layout, pill } from './ui.js';
+import { ago, band, button, card, day, esc, freshness, heading, layout } from './ui.js';
 
 const statusPill = (p: Program) => band(p.status);
 
