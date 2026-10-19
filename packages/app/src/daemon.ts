@@ -4,6 +4,7 @@ import { createServer, type Server as NetServer } from 'node:net';
 import { readJsonFile, writeFileAtomic } from '@orgspec/core';
 import { pendingActions } from '@orgspec/gateway';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import { recordSyncStat } from './admin-ops.js';
 import type { AppContext } from './context.js';
 import { searchDecisions } from './decisions.js';
 import { preToolUse } from './hook.js';
@@ -17,6 +18,7 @@ import { executePending, scoreCachedIssues } from './risk.js';
 import { Scheduler } from './scheduler.js';
 import { syncJobs } from './sync.js';
 import { registerTeamRoutes } from './team-pages.js';
+import { registerAdminRoutes } from './web/admin.js';
 import { registerEmRoutes } from './web/em.js';
 import { registerIcRoutes } from './web/ic.js';
 import { registerPmRoutes } from './web/pm.js';
@@ -69,6 +71,7 @@ export async function startDaemon(
     sync: cfg?.sync ?? { workingHours: { start: '09:00', end: '18:00', days: [1, 2, 3, 4, 5] }, sources: {} },
     personal: ctx.settings.intervals,
     jobs: syncJobs(ctx),
+    onEvent: (e) => recordSyncStat(ctx, e.source, e.ms),
   });
   const pending = pendingActions(ctx.db());
 
@@ -191,6 +194,7 @@ export async function startDaemon(
   registerSharedRoutes(app, ctx);
   registerEmRoutes(app, ctx);
   registerPmRoutes(app, ctx);
+  registerAdminRoutes(app, ctx);
   registerTeamRoutes(app, ctx);
 
   await app.listen({ host: '127.0.0.1', port: o.port ?? 0 });

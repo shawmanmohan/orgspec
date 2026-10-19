@@ -1,4 +1,5 @@
 export * from './admin.js';
+export * from './admin-ops.js';
 export * from './approvals.js';
 export * from './breakdown.js';
 export * from './check.js';

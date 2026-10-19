@@ -33,6 +33,12 @@ export interface RuleExtractor {
   extract(input: { overlay: Overlay; page: PageSnapshot; knownIds: string[] }): Promise<unknown>;
 }
 
+/** Pipeline progress: fetch, extract, ground, merge, budget, render (evals run after, in admin). */
+export type CompileProgress = (
+  step: 'fetch' | 'extract' | 'ground' | 'merge' | 'budget' | 'render',
+  detail?: string,
+) => void;
+
 export const COMPILER_VERSION = '0.1.0';
 
 /** What the extractor must return for each rule; the compiler fills in layer, scope and source version. */
@@ -69,12 +75,13 @@ const sha = (text: string): string => `sha256:${createHash('sha256').update(text
 /** Fetch → normalise → extract → ground → classify for one overlay. */
 export async function compileOverlay(
   overlay: Overlay,
-  deps: { fetcher: SourceFetcher; extractor: RuleExtractor; knownIds?: string[] },
+  deps: { fetcher: SourceFetcher; extractor: RuleExtractor; knownIds?: string[]; onStep?: CompileProgress },
 ): Promise<OverlayResult> {
   const result: OverlayResult = { overlay, rules: [], dropped: [], snapshots: [], diagnostics: [] };
   for (const src of overlay.spec.sources) {
     const { pageId, space, title } = src.confluence;
     let page: PageSnapshot;
+    deps.onStep?.('fetch', `${overlay.metadata.id}: ${title}`);
     try {
       const fetched = await deps.fetcher.fetch({ pageId, space, title });
       const text = storageToText(fetched.storage);
@@ -88,6 +95,7 @@ export async function compileOverlay(
       continue;
     }
     result.snapshots.push(page);
+    deps.onStep?.('extract', `${overlay.metadata.id}: ${title} v${page.version}`);
 
     let raw: unknown;
     try {
@@ -119,6 +127,7 @@ export async function compileOverlay(
       if (rule) result.rules.push(rule);
     }
   }
+  deps.onStep?.('ground', `${overlay.metadata.id}: ${result.rules.length} kept, ${result.dropped.length} dropped`);
   if (result.rules.length > overlay.spec.budget.maxRules) {
     result.diagnostics.push(
       error(
@@ -204,13 +213,19 @@ export async function compileAll(
     version: (persona: string) => string;
     extraFiles?: (persona: string) => Record<string, string>;
     outDir?: string;
+    onStep?: CompileProgress;
   },
 ): Promise<CompileResult> {
   const diagnostics: Diagnostic[] = [];
   const overlays: OverlayResult[] = [];
   const knownIds: string[] = [];
   for (const o of config.overlays) {
-    const r = await compileOverlay(o, { fetcher: deps.fetcher, extractor: deps.extractor, knownIds });
+    const r = await compileOverlay(o, {
+      fetcher: deps.fetcher,
+      extractor: deps.extractor,
+      knownIds,
+      ...(deps.onStep ? { onStep: deps.onStep } : {}),
+    });
     knownIds.push(...r.rules.map((x) => x.id));
     overlays.push(r);
     diagnostics.push(...r.diagnostics);
@@ -235,10 +250,12 @@ export async function compileAll(
           : r,
       ),
     }));
+    deps.onStep?.('merge', pid);
     const merged = mergeLayers(layers);
     diagnostics.push(...merged.diagnostics);
     const rules = merged.rules.filter((r) => r.appliesTo.personas.length === 0 || r.appliesTo.personas.includes(pid));
     const budget = own[0]?.overlay.spec.budget.maxTokens ?? 6000;
+    deps.onStep?.('budget', `${pid}: ${rules.length} rules, about ${estimateTokens(rules)} tokens`);
     if (estimateTokens(rules) > budget) {
       diagnostics.push(
         error(
@@ -267,6 +284,7 @@ export async function compileAll(
   }
 
   if (diagnostics.some((d) => d.severity === 'error')) return result;
+  deps.onStep?.('render', plans.map((p) => `${p.persona} ${p.version}`).join(', '));
   for (const p of plans) {
     const dir = join(deps.outDir ?? join(config.dir, 'compiled'), p.persona, p.version);
     const manifest = writeBundle(dir, p.content);

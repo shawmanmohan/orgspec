@@ -1,6 +1,7 @@
 import { readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import {
+  type CompileProgress,
   type CompileResult,
   compileAll,
   describeDiff,
@@ -57,7 +58,7 @@ function requireConfig(ctx: AppContext): OrgConfig {
 }
 
 /** Currently pinned bundle rules for a persona, if any. */
-function currentRules(ctx: AppContext, persona: string): { version?: string; rules: Rule[] } {
+export function currentRules(ctx: AppContext, persona: string): { version?: string; rules: Rule[] } {
   const p = ctx.persona(persona);
   if (!p || !ctx.configDir) return { rules: [] };
   const { bundle } = loadBundle(join(ctx.configDir, p.spec.constitution.bundle));
@@ -74,13 +75,14 @@ export interface CompileReport extends CompileResult {
  */
 export async function adminCompile(
   ctx: AppContext,
-  deps: { fetcher?: SourceFetcher; extractor?: RuleExtractor } = {},
+  deps: { fetcher?: SourceFetcher; extractor?: RuleExtractor; onStep?: CompileProgress } = {},
 ): Promise<CompileReport> {
   const cfg = requireConfig(ctx);
   const result = await compileAll(cfg, {
     fetcher: deps.fetcher ?? mcpFetcher(ctx),
     extractor: deps.extractor ?? claudeExtractor(ctx),
     version: (persona) => bump(currentRules(ctx, persona).version ?? '0.0.0'),
+    ...(deps.onStep ? { onStep: deps.onStep } : {}),
   });
   const diffs = result.bundles.map((b) => {
     const cur = currentRules(ctx, b.persona);
