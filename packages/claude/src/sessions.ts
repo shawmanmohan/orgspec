@@ -34,22 +34,62 @@ export async function claudeVersion(
   };
 }
 
-export const SessionSchema = z
+/** One row of `claude agents --json`; the CLI reports `sessionId`, epoch-ms `startedAt` and `kind`. */
+const RawSessionSchema = z
   .object({
-    id: z.string(),
+    id: z.string().optional(),
+    shortId: z.string().optional(),
+    sessionId: z.string().optional(),
     name: z.string().optional(),
-    status: z.string().default('unknown'),
+    status: z.string().optional(),
+    kind: z.string().optional(),
     cwd: z.string().optional(),
-    agent: z.string().optional(),
-    startedAt: z.string().optional(),
-    updatedAt: z.string().optional(),
+    pid: z.number().optional(),
+    startedAt: z.union([z.number(), z.string()]).optional(),
   })
   .passthrough();
-export type ClaudeSession = z.infer<typeof SessionSchema>;
+
+export interface ClaudeSession {
+  /** The id `claude attach|logs|stop|rm` accept: the short id when the CLI gives one, else the session id. */
+  id: string;
+  sessionId?: string;
+  name?: string;
+  status: string;
+  kind?: string;
+  cwd?: string;
+  startedAt?: string;
+}
+
+export function normalizeSession(raw: unknown): ClaudeSession | undefined {
+  const p = RawSessionSchema.safeParse(raw);
+  if (!p.success) return undefined;
+  const r = p.data;
+  const id = r.shortId ?? r.id ?? r.sessionId;
+  if (!id) return undefined;
+  const started = typeof r.startedAt === 'number' ? new Date(r.startedAt).toISOString() : r.startedAt;
+  return {
+    id,
+    status: r.status ?? 'unknown',
+    ...(r.sessionId ? { sessionId: r.sessionId } : {}),
+    ...(r.name ? { name: r.name } : {}),
+    ...(r.kind ? { kind: r.kind } : {}),
+    ...(r.cwd ? { cwd: r.cwd } : {}),
+    ...(started ? { startedAt: started } : {}),
+  };
+}
+
+/** The session id `claude --bg` prints: a UUID, or the short id on an "id"/"started" line, or the last word. */
+export function parseBackgroundId(out: string): string | undefined {
+  const uuid = /\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/i.exec(out)?.[1];
+  if (uuid) return uuid;
+  const labelled = /\b(?:id|session)\b[:\s]+([A-Za-z0-9_-]{4,})/i.exec(out)?.[1];
+  if (labelled) return labelled;
+  return out.trim().split(/\s+/).pop() || undefined;
+}
 
 /**
- * Background session control on top of the Claude CLI. Every command line lives here so a CLI
- * change touches one file.
+ * Background session control on top of the Claude CLI (`claude --bg`, `claude agents --json`,
+ * `claude attach|logs|stop|respawn|rm`). Every command line lives here so a CLI change touches one file.
  */
 export function claudeSessions(runner: CommandRunner = runCommand, bin = CLAUDE_BIN) {
   const call = async (args: string[], cwd?: string) => {
@@ -58,28 +98,26 @@ export function claudeSessions(runner: CommandRunner = runCommand, bin = CLAUDE_
     return r.stdout;
   };
   return {
-    async list(): Promise<ClaudeSession[]> {
-      const out = await call(['agents', '--json', '--all']);
+    /** Sessions started under `cwd` (OrgSpec passes its ticket root, so other projects stay private). */
+    async list(cwd?: string): Promise<ClaudeSession[]> {
+      const out = await call(['agents', '--json', '--all', ...(cwd ? ['--cwd', cwd] : [])]);
       const raw = JSON.parse(out || '[]') as unknown;
       const list = Array.isArray(raw) ? raw : ((raw as { agents?: unknown[] }).agents ?? []);
-      return list.flatMap((s) => {
-        const p = SessionSchema.safeParse(s);
-        return p.success ? [p.data] : [];
-      });
+      return list.flatMap((s) => normalizeSession(s) ?? []);
     },
     /** Starts a background session and returns its id. */
     async start(o: { cwd: string; agent: string; prompt: string; name: string }): Promise<string> {
       const out = await call(['--bg', '--agent', o.agent, '-n', o.name, o.prompt], o.cwd);
-      const id = /([0-9a-f]{8}-[0-9a-f-]{27,})/i.exec(out)?.[1] ?? out.trim().split(/\s+/).pop();
+      const id = parseBackgroundId(out);
       if (!id) throw new Error('claude --bg did not print a session id');
       return id;
     },
-    logs: (id: string) => call(['agents', 'logs', id]),
-    stop: (id: string) => call(['agents', 'stop', id]),
-    respawn: (id: string) => call(['agents', 'respawn', id]),
-    remove: (id: string) => call(['agents', 'rm', id]),
+    logs: (id: string) => call(['logs', id]),
+    stop: (id: string) => call(['stop', id]),
+    respawn: (id: string) => call(['respawn', id]),
+    remove: (id: string) => call(['rm', id]),
     /** The command a terminal runs to attach to a background session. */
-    attachCommand: (id: string) => [bin, 'agents', 'attach', id],
+    attachCommand: (id: string) => [bin, 'attach', id],
   };
 }
 export type ClaudeSessions = ReturnType<typeof claudeSessions>;

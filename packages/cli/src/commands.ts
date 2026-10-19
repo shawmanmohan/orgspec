@@ -266,7 +266,8 @@ export function registerAppCommands(program: Command, h: CommandHelpers): void {
 
   const session = program.command('session').description('background Claude Code sessions');
   session.command('list').action(async () => {
-    const list = await ctx().sessions.list();
+    const c = ctx();
+    const list = await c.sessions.list(c.workRoot);
     emit({ sessions: list }, () =>
       list.length
         ? list.map((s) => `${s.id}  ${s.status.padEnd(10)} ${s.name ?? ''} ${s.cwd ?? ''}`).join('\n')

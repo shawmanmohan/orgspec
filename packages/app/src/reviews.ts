@@ -14,6 +14,9 @@ export const FindingSchema = z.object({
   finding: z.string(),
   suggestion: z.string().default(''),
   confidence: z.number().min(0).max(1).default(0.7),
+  /** Set when the problem is something the document lacks; `missing` names it in a few words. */
+  absent: z.boolean().default(false),
+  missing: z.string().default(''),
 });
 export type Finding = z.infer<typeof FindingSchema>;
 export const ReviewSchema = z.object({ summary: z.string(), findings: z.array(FindingSchema) });
@@ -54,8 +57,19 @@ export function groundFindings(findings: readonly Finding[], text: string, rubri
   const dropped: { finding: Finding; reason: string }[] = [];
   for (const f of findings) {
     if (!rubricIds.includes(f.rubricId)) dropped.push({ finding: f, reason: `unknown rubric rule ${f.rubricId}` });
-    else if (f.verdict !== 'pass' && !isGrounded(f.quote, text))
-      dropped.push({ finding: f, reason: 'quote not found in the document' });
+    else if (f.verdict === 'pass') kept.push(f);
+    else if (f.absent) {
+      // Nothing to quote for an omission; instead the named thing must really be missing from the document.
+      const words = f.missing
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter((w) => w.length > 3);
+      const lower = text.toLowerCase();
+      if (!words.length) dropped.push({ finding: f, reason: 'absence finding does not name what is missing' });
+      else if (words.every((w) => lower.includes(w)))
+        dropped.push({ finding: f, reason: `the document does mention "${f.missing}"` });
+      else kept.push(f);
+    } else if (!isGrounded(f.quote, text)) dropped.push({ finding: f, reason: 'quote not found in the document' });
     else kept.push(f);
   }
   return { kept, dropped };
@@ -101,6 +115,8 @@ export function listFindings(ctx: AppContext, subject?: string): StoredFinding[]
     finding: String(r.finding),
     suggestion: String(r.question ?? ''),
     confidence: Number(r.confidence ?? 0),
+    absent: !r.quote,
+    missing: '',
     status: String(r.status) as StoredFinding['status'],
   }));
 }
@@ -125,7 +141,7 @@ async function review(
   const rubric = rubricFor(rulesOrThrow(ctx), o.artifact);
   if (!rubric.length) throw new Error(`The constitution has no rubric for ${o.artifact}`);
   const prompt = promptWith(
-    `Review the document against each rubric question below. Return {"summary": string, "findings": [{"rubricId", "verdict": "pass"|"concern"|"fail", "quote", "finding", "suggestion", "confidence"}]}, one finding per rubric question.\n\nRubric:\n${rubric.map((r) => `- ${r.id}: ${r.question}`).join('\n')}`,
+    `Review the document against each rubric question below. Return {"summary": string, "findings": [{"rubricId", "verdict": "pass"|"concern"|"fail", "quote", "finding", "suggestion", "confidence", "absent", "missing"}]}, one finding per rubric question. A concern or fail about text in the document quotes that text exactly. A concern or fail about something the document lacks sets "absent": true and names it in "missing" (a few words, for example "rollback plan"); "quote" may then be empty.\n\nRubric:\n${rubric.map((r) => `- ${r.id}: ${r.question}`).join('\n')}`,
     { document: o.text, ...(o.context ?? {}) },
   );
   const job = await runAgentJob(ctx, {

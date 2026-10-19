@@ -242,6 +242,32 @@ describe('reviews', () => {
     expect(kept).toHaveLength(1);
     expect(dropped.map((d) => d.reason)).toEqual(['quote not found in the document', 'unknown rubric rule pm.unknown']);
   });
+  it('keeps omissions only when the named thing is really missing', () => {
+    const base = {
+      rubricId: 'eng.design.rollback',
+      verdict: 'fail' as const,
+      quote: '',
+      finding: 'x',
+      suggestion: '',
+      confidence: 0.8,
+      absent: true,
+    };
+    const text = '# Design\n\n## Approach\nRetry with backoff.';
+    const { kept, dropped } = groundFindings(
+      [
+        { ...base, missing: 'rollback plan' },
+        { ...base, missing: 'retry backoff' },
+        { ...base, missing: '' },
+      ],
+      text,
+      ['eng.design.rollback'],
+    );
+    expect(kept.map((k) => k.missing)).toEqual(['rollback plan']);
+    expect(dropped.map((d) => d.reason)).toEqual([
+      'the document does mention "retry backoff"',
+      'absence finding does not name what is missing',
+    ]);
+  });
   it('reviews a PRD from Confluence with a claude job', async () => {
     const { dir } = orgConfig(RULES, {
       'integrations.yaml': 'servers:\n  atlassian: { transport: stdio, command: x }\nconstants: { cloudId: c1 }\n',

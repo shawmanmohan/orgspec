@@ -101,6 +101,7 @@ export function writeClaudeFolder(o: ClaudeFolderOptions): string[] {
   for (const a of agentsFor(o.persona)) put(`.claude/agents/${a.id}.md`, renderAgent(a, { mcpTools }));
   for (const [f, text] of Object.entries(renderClaudeRules(o.rules, o.bundle))) put(`.claude/rules/${f}`, text);
   put('.mcp.json', `${JSON.stringify(mcpConfig(o.sessionId, o.orgspecBin), null, 2)}\n`);
+  put('.claude/settings.json', `${JSON.stringify(projectSettings(o.orgspecBin), null, 2)}\n`);
   return written;
 }
 
@@ -123,7 +124,8 @@ export function renderManagedSettings(
   opts: { orgspecBin?: string; marketplaces?: string[]; extraDeny?: string[] } = {},
 ) {
   const bin = opts.orgspecBin ?? 'orgspec';
-  const hook = (args: string, timeout = 5) => [{ type: 'command', command: `${bin} hook ${args}`, timeout }];
+  const exe = /\s/.test(bin) ? `'${bin.replace(/'/g, `'\\''`)}'` : bin;
+  const hook = (args: string, timeout = 5) => [{ type: 'command', command: `${exe} hook ${args}`, timeout }];
   return {
     allowManagedHooksOnly: true,
     allowManagedMcpServersOnly: true,
@@ -152,4 +154,26 @@ export function renderManagedSettings(
       SessionEnd: [{ hooks: hook('session-end', 15) }],
     },
   };
+}
+
+/**
+ * Project settings for a ticket folder: the same hooks and deny rules as the managed settings, so
+ * enforcement works before IT installs them. Under `allowManagedHooksOnly` Claude Code ignores these
+ * hooks and runs only the managed copy, so nothing runs twice.
+ */
+export function projectSettings(orgspecBin = 'orgspec') {
+  const m = renderManagedSettings({ orgspecBin });
+  return {
+    hooks: m.hooks,
+    permissions: { deny: m.permissions.deny },
+    enabledMcpjsonServers: ['orgspec'],
+    enableAllProjectMcpServers: false,
+  };
+}
+
+/** The command that runs this OrgSpec: `ORGSPEC_SELF`, the single executable itself, or `orgspec` on PATH. */
+export function selfCommand(env: NodeJS.ProcessEnv = process.env): string {
+  if (env.ORGSPEC_SELF) return env.ORGSPEC_SELF;
+  const exe = process.execPath;
+  return /(^|\/)orgspec(\.exe)?$/.test(exe) ? exe : 'orgspec';
 }

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { cpSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { interactiveCommand, openTerminal, writeClaudeFolder } from '@orgspec/claude';
+import { interactiveCommand, openTerminal, selfCommand, writeClaudeFolder } from '@orgspec/claude';
 import { exists, writeFileAtomic } from '@orgspec/core';
 import { ensureAccount, type JiraIssue, remoteOwner } from '@orgspec/integrations';
 import { findWorkspace, listChangeIds, loadChange } from '@orgspec/spec-engine';
@@ -173,7 +173,14 @@ export async function createPacket(ctx: AppContext, o: PacketOptions): Promise<P
       (r) => r.enforcement === 'hook' && (r.check?.kind === 'git-op' || r.check?.kind === 'file-scope'),
     ),
   });
-  writeClaudeFolder({ dir: folder, persona, rules: bundle.rules, bundle: session.bundle, sessionId: session.id });
+  writeClaudeFolder({
+    dir: folder,
+    persona,
+    rules: bundle.rules,
+    bundle: session.bundle,
+    sessionId: session.id,
+    orgspecBin: selfCommand(ctx.env),
+  });
   writeFileAtomic(join(folder, 'packet.md'), renderPacketMd(session, issue, warnings));
   writeFileAtomic(join(folder, 'CLAUDE.md'), `@packet.md\n`);
   ctx
@@ -184,8 +191,21 @@ export async function createPacket(ctx: AppContext, o: PacketOptions): Promise<P
   const packet: Packet = { session, folder, warnings };
   const prompt = `Read packet.md and continue work on ${o.ticket}.`;
   if (o.launch === 'background') {
-    packet.claudeSession = await ctx.sessions.start({ cwd: folder, agent: 'orgspec-engineer', prompt, name: o.ticket });
-    writeSession({ ...session, claudeSessionId: packet.claudeSession });
+    try {
+      packet.claudeSession = await ctx.sessions.start({
+        cwd: folder,
+        agent: 'orgspec-engineer',
+        prompt,
+        name: o.ticket,
+      });
+      writeSession({ ...session, claudeSessionId: packet.claudeSession });
+    } catch (e) {
+      if (!/not trusted/i.test((e as Error).message)) throw e;
+      // Trust is the person's decision; OrgSpec never edits Claude Code's trust settings.
+      warnings.push(
+        `Claude Code has not trusted ${ctx.workRoot} yet, so it cannot start background sessions there. Run "claude" once in ${ctx.workRoot}, accept the trust prompt, then run: orgspec packet ${o.ticket} --launch background`,
+      );
+    }
   } else if (o.launch === 'interactive') {
     packet.terminalScript = openTerminal({
       app: ctx.settings.terminal,

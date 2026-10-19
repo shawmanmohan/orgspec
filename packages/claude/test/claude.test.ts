@@ -66,11 +66,41 @@ describe('sessions and version', () => {
     const runner = fakeRunner([
       {
         match: (_c, a) => a[0] === 'agents',
-        result: { code: 0, stdout: JSON.stringify([{ id: 'abc', status: 'running', extra: 1 }]), stderr: '' },
+        result: {
+          code: 0,
+          stdout: JSON.stringify([
+            {
+              pid: 1,
+              cwd: '/w/PAY-1',
+              kind: 'background',
+              startedAt: 1792256746911,
+              sessionId: 'abc',
+              name: 'PAY-1',
+              status: 'idle',
+            },
+          ]),
+          stderr: '',
+        },
       },
     ]);
     const list = await claudeSessions(runner).list();
-    expect(list[0]?.id).toBe('abc');
+    expect(list[0]).toMatchObject({ id: 'abc', kind: 'background', startedAt: '2026-10-17T17:05:46.911Z' });
+    expect(runner.calls[0]?.args).toEqual(['agents', '--json', '--all']);
+    await claudeSessions(runner).list('/w');
+    expect(runner.calls[1]?.args).toEqual(['agents', '--json', '--all', '--cwd', '/w']);
+  });
+  it('uses the top-level attach, logs, stop and rm commands', async () => {
+    const runner = fakeRunner([{ match: () => true, result: { code: 0, stdout: '', stderr: '' } }]);
+    const s = claudeSessions(runner);
+    await s.logs('a1');
+    await s.stop('a1');
+    await s.remove('a1');
+    expect(runner.calls.map((c) => c.args)).toEqual([
+      ['logs', 'a1'],
+      ['stop', 'a1'],
+      ['rm', 'a1'],
+    ]);
+    expect(s.attachCommand('a1')).toEqual(['claude', 'attach', 'a1']);
   });
 });
 
@@ -118,5 +148,12 @@ describe('generators', () => {
     expect(s.allowManagedHooksOnly).toBe(true);
     expect(s.allowedMcpServers).toEqual([{ serverName: 'orgspec' }]);
     expect(s.hooks.PreToolUse[0]?.hooks[0]?.command).toBe('orgspec hook pre-tool-use');
+  });
+});
+
+describe('hook commands', () => {
+  it('quotes an executable path that contains spaces', () => {
+    const s = renderManagedSettings({ orgspecBin: '/Users/a/Application Support/orgspec' });
+    expect(s.hooks.PreToolUse[0]?.hooks[0]?.command).toBe("'/Users/a/Application Support/orgspec' hook pre-tool-use");
   });
 });
