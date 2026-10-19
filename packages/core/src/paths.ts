@@ -1,4 +1,5 @@
-import { homedir } from 'node:os';
+import { createHash } from 'node:crypto';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 /** Where OrgSpec keeps local state on this machine. `ORGSPEC_HOME` overrides it (tests, sandboxes). */
@@ -24,6 +25,13 @@ export interface LocalPaths {
   keyFile: string;
 }
 
+/** Unix socket paths are limited to about 104 bytes on macOS; long homes get a short hashed path in tmp. */
+export function socketPath(home: string): string {
+  const direct = join(home, 'orgspec.sock');
+  if (Buffer.byteLength(direct) <= 100) return direct;
+  return join(tmpdir(), `orgspec-${createHash('sha256').update(home).digest('hex').slice(0, 12)}.sock`);
+}
+
 export function localPaths(env: NodeJS.ProcessEnv = process.env): LocalPaths {
   const home = appDataDir(env);
   return {
@@ -35,7 +43,7 @@ export function localPaths(env: NodeJS.ProcessEnv = process.env): LocalPaths {
     snapshots: join(home, 'snapshots'),
     packets: join(home, 'packets'),
     logs: join(home, 'logs'),
-    socket: join(home, 'orgspec.sock'),
+    socket: socketPath(home),
     daemonInfo: join(home, 'daemon.json'),
     keyFile: join(home, 'keys.json'),
   };

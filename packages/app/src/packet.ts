@@ -6,7 +6,14 @@ import { exists, writeFileAtomic } from '@orgspec/core';
 import { ensureAccount, type JiraIssue, remoteOwner } from '@orgspec/integrations';
 import { findWorkspace, listChangeIds, loadChange } from '@orgspec/spec-engine';
 import type { AppContext } from './context.js';
-import { readSession, type SessionRepo, type TicketSession, writeHookRules, writeSession } from './session.js';
+import {
+  currentSession,
+  readSession,
+  type SessionRepo,
+  type TicketSession,
+  writeHookRules,
+  writeSession,
+} from './session.js';
 
 export interface PacketOptions {
   ticket: string;
@@ -198,7 +205,7 @@ export function listPackets(ctx: AppContext): TicketSession[] {
     .filter((d) => !d.startsWith('.') && exists(join(ctx.workRoot, d, 'session.json')))
     .flatMap((d) => {
       try {
-        return [readSession(join(ctx.workRoot, d))];
+        return [currentSession(join(ctx.workRoot, d))];
       } catch {
         return [];
       }

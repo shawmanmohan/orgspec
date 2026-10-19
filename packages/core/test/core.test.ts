@@ -125,3 +125,15 @@ describe('settings', () => {
     expect(loadSettings(file).github.orgAccounts).toEqual({ 'github.com/acme': 'asha-work' });
   });
 });
+
+describe('socketPath', () => {
+  it('keeps short paths and hashes long ones under the macOS limit', async () => {
+    const { socketPath } = await import('../src/paths.js');
+    expect(socketPath('/Users/a/Library/Application Support/OrgSpec')).toBe(
+      '/Users/a/Library/Application Support/OrgSpec/orgspec.sock',
+    );
+    const long = socketPath(`/private/tmp/${'x'.repeat(120)}`);
+    expect(Buffer.byteLength(long)).toBeLessThanOrEqual(104);
+    expect(long).toMatch(/orgspec-[0-9a-f]{12}\.sock$/);
+  });
+});

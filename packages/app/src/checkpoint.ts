@@ -6,6 +6,7 @@ import { changeStatus, findWorkspace, loadChange, taskProgress } from '@orgspec/
 import type { HookInput, HookOutput } from './hook.js';
 import {
   checkpointsDir,
+  currentSession,
   findSessionFolder,
   latestCheckpoint,
   logAction,
@@ -74,7 +75,7 @@ export function renderCheckpoint(s: TicketSession, reason: string): string {
 }
 
 export function writeCheckpoint(folder: string, reason: string): string {
-  const s = readSession(folder);
+  const s = currentSession(folder);
   const text = renderCheckpoint(s, reason);
   const file = join(checkpointsDir(folder), `${new Date().toISOString().replace(/[:.]/g, '-')}.md`);
   writeFileAtomic(file, text);

@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import type { Rule } from '@orgspec/constitution';
 import { evaluateFileWrite, evaluateGitCommand, type HookDecision } from '@orgspec/constitution/hook';
-import { findSessionFolder, logAction, readHookRules, readSession, type TicketSession } from './session.js';
+import { currentSession, findSessionFolder, logAction, readHookRules, type TicketSession } from './session.js';
 
 // `orgspec hook pre-tool-use` runs on every Bash and file-write tool call. p99 budget: 100 ms.
 // Imports stay light; anything slow (gh, spec parsing) runs only for the rare calls that need it.
@@ -75,7 +75,7 @@ export function preToolUse(
   const cwd = input.cwd ?? process.cwd();
   const folder = findSessionFolder(cwd);
   if (!folder) return undefined;
-  const s = readSession(folder);
+  const s = currentSession(folder);
   const rules = (readHookRules(folder)?.rules ?? []) as Rule[];
   const tool = input.tool_name ?? '';
   let d: HookDecision = { decision: 'allow' };

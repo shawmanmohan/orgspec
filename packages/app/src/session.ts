@@ -123,3 +123,28 @@ export function latestCheckpoint(folder: string): { file: string; text: string }
   const last = files.at(-1);
   return last ? { file: join(dir, last), text: readFileSync(join(dir, last), 'utf8') } : undefined;
 }
+
+const TIER_LINE = /^tier:\s*(low|medium|high)\s*$/m;
+
+/**
+ * The session with its change and tier read live from the primary repo, so a change created or
+ * re-tiered after the packet is enforced at its current tier. Builtins only: the hook calls this.
+ */
+export function currentSession(folder: string): TicketSession {
+  const s = readSession(folder);
+  const primary = s.repos[0];
+  if (!primary) return s;
+  const changes = join(primary.path, 'orgspec', 'changes');
+  if (!existsSync(changes)) return s;
+  const change =
+    s.change && existsSync(join(changes, s.change, 'change.yaml'))
+      ? s.change
+      : readdirSync(changes).find(
+          (d) => (d === s.ticket || d.startsWith(`${s.ticket}-`)) && existsSync(join(changes, d, 'change.yaml')),
+        );
+  if (!change) return s;
+  const tier = TIER_LINE.exec(readFileSync(join(changes, change, 'change.yaml'), 'utf8'))?.[1] as
+    | TicketSession['tier']
+    | undefined;
+  return { ...s, change, ...(tier ? { tier } : {}) };
+}

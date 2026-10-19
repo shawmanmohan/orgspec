@@ -16,6 +16,8 @@ export interface SourceState {
   status: 'idle' | 'running' | 'ok' | 'error' | 'paused';
   message?: string;
   effectiveIntervalMs?: number;
+  /** When the source runs next; undefined while paused off hours. */
+  nextRunAt?: string;
 }
 
 const MAX_BACKOFF = 8;
@@ -82,7 +84,33 @@ export class Scheduler {
   }
 
   states(): SourceState[] {
-    return Object.keys(this.o.jobs).map((s) => this.state(s));
+    const now = (this.o.now ?? (() => new Date()))();
+    return Object.keys(this.o.jobs).map((source) => {
+      const st = this.state(source);
+      const cfg = this.cfg(source);
+      const every = cfg
+        ? effectiveInterval(cfg, {
+            failures: st.failures,
+            now,
+            workingHours: this.o.sync.workingHours,
+            ...(this.o.personal[source] ? { personal: this.o.personal[source] } : {}),
+          })
+        : undefined;
+      if (every === undefined)
+        return { ...st, ...(cfg ? { status: st.status === 'running' ? st.status : 'paused' } : {}) } as SourceState;
+      const next = st.lastRunAt ? new Date(Math.max(now.getTime(), Date.parse(st.lastRunAt) + every)) : now;
+      return { ...st, nextRunAt: next.toISOString() };
+    });
+  }
+
+  /** Runs left `running` by a process that stopped mid-sync are marked interrupted, so they show and retry. */
+  recoverInterrupted(): number {
+    const r = this.o.db
+      .prepare(
+        "update sync_state set status = 'error', message = 'interrupted: OrgSpec stopped during this sync', last_run_at = null where status = 'running'",
+      )
+      .run();
+    return Number(r.changes);
   }
 
   private save(
@@ -164,6 +192,7 @@ export class Scheduler {
 
   start(everyMs = 15_000): void {
     this.stop();
+    this.recoverInterrupted();
     void this.tick();
     this.timer = setInterval(() => void this.tick(), everyMs);
     this.timer.unref?.();

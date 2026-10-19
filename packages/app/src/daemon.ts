@@ -393,13 +393,20 @@ export async function startDaemon(
       '/sync',
       'Sync',
       table(
-        ['Source', 'Status', 'Last run', 'Message', ''],
+        ['Source', 'Status', 'Last run', 'Next run', 'Message', ''],
         scheduler
           .states()
           .map((s) => [
             esc(s.source),
             `<span class="${s.status === 'error' ? 'bad' : s.status === 'ok' ? 'ok' : 'muted'}">${esc(s.status)}</span>${s.failures ? ` <span class="warn">backing off ×${s.failures}</span>` : ''}`,
-            esc(s.lastRunAt?.slice(0, 19) ?? 'never'),
+            esc(s.lastRunAt?.slice(0, 19).replace('T', ' ') ?? 'never'),
+            esc(
+              !s.nextRunAt
+                ? 'paused (off hours)'
+                : Date.parse(s.nextRunAt) <= Date.now() + 1000
+                  ? 'now'
+                  : new Date(s.nextRunAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            ),
             esc(s.message ?? ''),
             button('Run now', 'POST', `/api/sync/${s.source}/run`, undefined, true),
           ]),
@@ -534,6 +541,10 @@ export function startHookSocket(path: string): NetServer {
       }
       conn.end(`${out}\n`);
     });
+  });
+  server.on('error', (e) => {
+    // The hook falls back to in-process evaluation, so a missing socket is not fatal.
+    process.stderr.write(`OrgSpec hook socket unavailable (${path}): ${e.message}\n`);
   });
   server.listen(path, () => chmodSync(path, 0o600));
   return server;

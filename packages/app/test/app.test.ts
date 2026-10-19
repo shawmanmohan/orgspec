@@ -29,7 +29,7 @@ import {
   writeHookRules,
   writeSession,
 } from '../src/index.js';
-import { gitRepo, makeContext, orgConfig, put, RULES, sh, tmp } from './helpers.js';
+import { gitRepo, makeContext, orgConfig, put, RULES, rule, sh, tmp } from './helpers.js';
 
 function ticketFolder(o: { ghAccount?: string; change?: string } = {}) {
   const folder = tmp('orgspec-ticket-');
@@ -338,5 +338,59 @@ describe('daemon', () => {
     } finally {
       await d.close();
     }
+  });
+});
+
+describe('scheduler recovery', () => {
+  it('marks runs interrupted by a crash and reports the next run', () => {
+    const db = openDb(':memory:', CORE_MIGRATIONS);
+    db.prepare(
+      "insert into sync_state (source, last_run_at, status, clean_runs) values ('jira.active', '2026-10-19T02:20:00Z', 'running', 0)",
+    ).run();
+    const s = new Scheduler({
+      db,
+      sync: { workingHours: { start: '00:00', end: '23:59', days: [0, 1, 2, 3, 4, 5, 6] }, sources: {} },
+      personal: {},
+      jobs: { 'jira.active': async () => 'ok' },
+      now: () => new Date('2026-10-19T03:00:00Z'),
+    });
+    expect(s.recoverInterrupted()).toBe(1);
+    const st = s.states()[0];
+    expect(st).toMatchObject({ status: 'error', message: expect.stringContaining('interrupted') });
+    expect(st?.nextRunAt).toBe('2026-10-19T03:00:00.000Z');
+    expect(s.due()).toEqual(['jira.active']);
+  });
+});
+
+describe('live change tier', () => {
+  it('enforces the tier in change.yaml, not the tier the packet started with', () => {
+    const { folder, repo } = ticketFolder();
+    writeHookRules(folder, {
+      bundle: 'x',
+      rules: [
+        rule({
+          id: 'eng.git.no-merge-high',
+          enforcement: 'hook',
+          severity: 'blocking',
+          check: { kind: 'git-op', deny: ['merge'], ask: [], tiers: ['high'] },
+        }),
+      ],
+    });
+    const merge = () =>
+      preToolUse({ cwd: repo, tool_name: 'Bash', tool_input: { command: 'gh pr merge 5' } })?.hookSpecificOutput
+        ?.permissionDecision;
+    expect(merge()).toBeUndefined();
+    put(
+      repo,
+      'orgspec/changes/PAY-1-retries/change.yaml',
+      'id: PAY-1-retries\njira: PAY-1\nschema: feature@1\ntier: medium\n',
+    );
+    expect(merge()).toBeUndefined();
+    put(
+      repo,
+      'orgspec/changes/PAY-1-retries/change.yaml',
+      'id: PAY-1-retries\njira: PAY-1\nschema: feature@1\ntier: high\n',
+    );
+    expect(merge()).toBe('deny');
   });
 });

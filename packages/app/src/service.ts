@@ -162,7 +162,15 @@ export async function doctor(ctx: AppContext, o: { hookTiming?: () => Promise<nu
         const tools = await ctx.pool().tools(name);
         add({ name: `MCP ${name}`, ok: true, detail: `${tools.length} tools` });
       } catch (e) {
-        add({ name: `MCP ${name}`, ok: false, detail: (e as Error).message, fix: `Run: orgspec connect ${name}` });
+        add({
+          name: `MCP ${name}`,
+          ok: false,
+          detail: (e as Error).message,
+          fix:
+            cfg.integrations.servers[name]?.transport === 'http'
+              ? `Run: orgspec connect ${name}`
+              : `Check that "${cfg.integrations.servers[name]?.command}" is installed and on PATH (integrations.yaml)`,
+        });
       }
     }
   }
