@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint, build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm test
+        env:
+          ORGSPEC_KEYSTORE: file
+      - name: Assemble the npm package
+        run: node scripts/npm-package.mjs
+      - name: Smoke-test the package
+        run: |
+          cd dist/npm && npm pack --pack-destination "$RUNNER_TEMP"
+          npm install -g --prefix "$RUNNER_TEMP/prefix" "$RUNNER_TEMP"/*.tgz
+          "$RUNNER_TEMP/prefix/bin/orgspec" --version
+          "$RUNNER_TEMP/prefix/bin/orgspec" --help > /dev/null

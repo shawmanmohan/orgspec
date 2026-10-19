@@ -35,7 +35,7 @@ export interface IO {
   cwd: string;
 }
 
-export const VERSION = '0.1.0';
+export const VERSION = process.env.ORGSPEC_BUILD ?? '0.1.0';
 
 export interface RunDeps {
   /** Builds the app context (tests inject fakes for claude, gh and MCP). */

@@ -12,7 +12,7 @@ const out = join(root, 'dist');
 const require = createRequire(join(root, 'packages/gateway/package.json'));
 const cedarJs = require.resolve('@cedar-policy/cedar-wasm/nodejs');
 const wasm = join(dirname(cedarJs), 'cedar_wasm_bg.wasm');
-const version = JSON.parse(readFileSync(join(root, 'packages/cli/package.json'), 'utf8')).version;
+const version = process.env.ORGSPEC_VERSION ?? JSON.parse(readFileSync(join(root, 'packages/cli/package.json'), 'utf8')).version;
 
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });

@@ -1,0 +1,60 @@
+name: Release
+
+# Publishes @shawmanmohan/orgspec to npm when a version tag is pushed:
+#   git tag v0.2.0 && git push origin v0.2.0
+# Needs the repository secret NPM_TOKEN: an npm automation (or granular) token that can publish the package.
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish (for example 0.2.0)
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm test
+        env:
+          ORGSPEC_KEYSTORE: file
+      - name: Work out the version
+        id: version
+        run: |
+          v="${{ inputs.version || github.ref_name }}"
+          echo "version=${v#v}" >> "$GITHUB_OUTPUT"
+      - name: Assemble the npm package
+        run: node scripts/npm-package.mjs --version "${{ steps.version.outputs.version }}"
+      - name: Publish to npm
+        working-directory: dist/npm
+        run: |
+          tag=latest
+          case "${{ steps.version.outputs.version }}" in *-*) tag=next ;; esac
+          npm publish --access restricted --tag "$tag"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Attach the tarball to a GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd dist/npm && npm pack --pack-destination "$RUNNER_TEMP"
+          gh release create "${{ github.ref_name }}" "$RUNNER_TEMP"/*.tgz --generate-notes --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}
