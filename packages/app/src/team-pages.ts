@@ -13,6 +13,7 @@ import {
   prepareBrief,
   privateNotes,
   type RosterEntry,
+  requestManagerChange,
   roster,
   savePrivateNote,
   scheduleOneOnOne,
@@ -55,6 +56,9 @@ export function registerTeamRoutes(app: FastifyInstance, ctx: AppContext): void 
   const report = (email: string) => findReport(ctx, decodeURIComponent(email));
 
   // ---- API ----
+  app.post('/api/team/manager-change', async (req: FastifyRequest<{ Body: { email: string; note?: string } }>) => ({
+    action: requestManagerChange(ctx, req.body.email, req.body.note ?? ''),
+  }));
   app.get('/api/team', async () => roster(ctx));
   app.post('/api/team/:email/brief', async (req: FastifyRequest<{ Params: { email: string } }>) =>
     prepareBrief(ctx, await report(req.params.email)),
@@ -123,7 +127,7 @@ export function registerTeamRoutes(app: FastifyInstance, ctx: AppContext): void 
           ? `<a href="${href}">Open brief</a>`
           : `<a href="${href}">Prepare</a>`;
       return [
-        `<div class="who"><a href="${href}">${esc(r.name)}</a></div><div class="sub">${esc([r.title, r.team].filter(Boolean).join(' · '))}</div>`,
+        `<div class="who"><a href="${href}">${esc(r.name)}</a></div><div class="sub">${esc([r.title, r.team].filter(Boolean).join(' · '))}</div>${r.moveTo || r.moveOn ? `<div class="sub warn">Moves to ${esc(r.moveTo ?? 'another manager')}${r.moveOn ? ` on ${esc(day(r.moveOn))}` : ''} · history stays with HR policy</div>` : ''}`,
         r.cadence ? esc(CADENCES[r.cadence].label.split(',')[0]) : '<span class="muted">Not set</span>',
         r.nextOneOnOne ? esc(when(r.nextOneOnOne.start)) : '<span class="muted">Not scheduled</span>',
         String(r.openActions),
@@ -175,7 +179,8 @@ ${schedule}
 <div class="card"><table><thead><tr>${['Person', 'Cadence', 'Next 1:1', 'Open actions', 'Prep brief', 'Action'].map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>
 ${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('') || '<tr><td colspan="6" class="muted">No direct reports in the HR directory.</td></tr>'}
 </tbody></table></div>
-<p class="sub">You can only add people the HR directory lists as your reports; anything else goes to HR as a manager-change request. When someone moves, your access to their briefs ends that day.</p>`;
+<p class="sub">You can only add people the HR directory lists as your reports; anything else goes to HR as a manager-change request. When someone moves, your access to their briefs ends that day.</p>
+<section class="card" id="addreport"><h2>Add a direct report</h2><div class="row"><input id="mcEmail" placeholder="name@company.com" style="flex:1 1 240px"><input id="mcNote" placeholder="Why (optional)" style="flex:2 1 300px"><button onclick="act(this,'POST','/api/team/manager-change',()=>({email:val('mcEmail'),note:val('mcNote')}),'/actions')">Ask HR</button></div><p class="small muted" style="margin:0">Sends a manager-change request through the HR system after you approve it under Approvals. They appear here once HR updates the directory.</p></section>`;
     return html(reply, '/team', 'Team and 1:1s', body);
   });
 
@@ -193,7 +198,7 @@ ${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')
     const first = r.name.split(' ')[0];
     const header = `<p><a href="/team">Team and 1:1s</a> / ${esc(r.name)}</p>
 <h2 style="font-size:17px;margin:4px 0">1:1 with ${esc(r.name)}${r.nextOneOnOne ? ` · ${esc(when(r.nextOneOnOne.start))}` : ''}</h2>
-<p class="sub">${brief ? `Brief built ${esc(day(brief.createdAt))} from Jira, GitHub and your shared page, since ${esc(day(brief.since))}${brief.dropped ? ` · ${brief.dropped} unsourced item(s) left out` : ''}` : 'No brief yet.'} ${button(brief ? 'Rebuild brief' : 'Prepare brief', 'POST', `/api/team/${enc}/brief`, undefined, Boolean(brief))}</p>
+<p class="sub">${brief ? `Brief built ${esc(day(brief.createdAt))} from Jira, GitHub and your shared page, since ${esc(day(brief.since))}${brief.dropped ? ` · ${brief.dropped} unsourced item(s) left out` : ''}${brief.career ? ` · career framework: ${esc(brief.career)}` : ''}` : 'No brief yet.'} ${button(brief ? 'Rebuild brief' : 'Prepare brief', 'POST', `/api/team/${enc}/brief`, undefined, Boolean(brief))}</p>
 <p class="note">A preparation aid, not an evaluation. No scores or rankings, and it never feeds pay or promotion decisions. ${esc(first)} sees the same evidence and can add context on your shared page.</p>`;
 
     const left = brief

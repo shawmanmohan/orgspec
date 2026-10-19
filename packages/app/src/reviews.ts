@@ -26,6 +26,8 @@ export interface StoredFinding extends Finding {
   subject: string;
   severity: string;
   status: 'open' | 'accepted' | 'dismissed' | 'resolved';
+  /** The reviewer's own wording (an edit) or the reason for rejecting it. */
+  edited?: string;
 }
 
 export interface ReviewResult {
@@ -75,7 +77,7 @@ export function groundFindings(findings: readonly Finding[], text: string, rubri
   return { kept, dropped };
 }
 
-function storeFindings(
+export function storeFindings(
   ctx: AppContext,
   subject: string,
   findings: readonly Finding[],
@@ -118,11 +120,15 @@ export function listFindings(ctx: AppContext, subject?: string): StoredFinding[]
     absent: !r.quote,
     missing: '',
     status: String(r.status) as StoredFinding['status'],
+    ...(r.edited ? { edited: String(r.edited) } : {}),
   }));
 }
 
-export function setFindingStatus(ctx: AppContext, id: string, status: StoredFinding['status']): void {
-  ctx.db().prepare('update findings set status = ? where id = ?').run(status, id);
+export function setFindingStatus(ctx: AppContext, id: string, status: StoredFinding['status'], edited?: string): void {
+  ctx
+    .db()
+    .prepare('update findings set status = ?, edited = coalesce(?, edited) where id = ?')
+    .run(status, edited ?? null, id);
 }
 
 const rulesOrThrow = (ctx: AppContext): Rule[] => {

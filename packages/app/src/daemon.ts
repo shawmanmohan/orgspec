@@ -17,6 +17,7 @@ import { executePending, scoreCachedIssues } from './risk.js';
 import { Scheduler } from './scheduler.js';
 import { syncJobs } from './sync.js';
 import { registerTeamRoutes } from './team-pages.js';
+import { registerEmRoutes } from './web/em.js';
 import { registerIcRoutes } from './web/ic.js';
 import { registerSharedRoutes } from './web/shared.js';
 import { registerShellRoutes } from './web/shell.js';
@@ -187,6 +188,7 @@ export async function startDaemon(
   registerShellRoutes(app, ctx, { started });
   registerIcRoutes(app, ctx);
   registerSharedRoutes(app, ctx);
+  registerEmRoutes(app, ctx);
   registerTeamRoutes(app, ctx);
 
   await app.listen({ host: '127.0.0.1', port: o.port ?? 0 });

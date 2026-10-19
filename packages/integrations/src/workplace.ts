@@ -127,6 +127,9 @@ export interface Person {
   team?: string;
   managerEmail?: string;
   timezone?: string;
+  /** A pending move to another manager, from the HR directory. */
+  moveTo?: string;
+  moveOn?: string;
 }
 
 const normalizePerson = (raw: unknown): Person => {
@@ -134,6 +137,8 @@ const normalizePerson = (raw: unknown): Person => {
   const team = pick<string>(raw, 'team', 'department');
   const managerEmail = pick<string>(raw, 'managerEmail', 'manager.email');
   const timezone = pick<string>(raw, 'timezone', 'tz');
+  const moveTo = pick<string>(raw, 'managerChange.toName', 'managerChange.to', 'pendingManager');
+  const moveOn = pick<string>(raw, 'managerChange.effective', 'managerChangeDate');
   return {
     email: pick<string>(raw, 'email', 'workEmail') ?? '',
     name: pick<string>(raw, 'name', 'displayName', 'fullName') ?? '',
@@ -141,6 +146,8 @@ const normalizePerson = (raw: unknown): Person => {
     ...(team ? { team } : {}),
     ...(managerEmail ? { managerEmail } : {}),
     ...(timezone ? { timezone } : {}),
+    ...(moveTo ? { moveTo } : {}),
+    ...(moveOn ? { moveOn } : {}),
   };
 };
 

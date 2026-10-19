@@ -17,7 +17,14 @@ export const PeopleSchema = z.object({
       z.object({ github: z.string().optional(), slack: z.string().optional(), jiraAccountId: z.string().optional() }),
     )
     .default({}),
-  oneOnOne: z.object({ spaceId: z.string().optional(), parentId: z.string().optional() }).default({}),
+  oneOnOne: z
+    .object({
+      spaceId: z.string().optional(),
+      parentId: z.string().optional(),
+      /** Confluence page with the career framework briefs refer to. */
+      careerPageId: z.string().optional(),
+    })
+    .default({}),
 });
 export type People = z.infer<typeof PeopleSchema>;
 
@@ -98,6 +105,16 @@ export async function findReport(ctx: AppContext, email: string): Promise<Roster
     throw Object.assign(new Error(`${email} is not one of your direct reports in the HR directory`), {
       statusCode: 404,
     });
+  if (r.moveOn && r.moveOn.slice(0, 10) <= new Date().toISOString().slice(0, 10)) {
+    throw Object.assign(
+      new Error(
+        `${r.name} moved to ${r.moveTo ?? 'another manager'} on ${r.moveOn.slice(0, 10)}; your access to their briefs ended that day`,
+      ),
+      {
+        statusCode: 403,
+      },
+    );
+  }
   return r;
 }
 
@@ -285,6 +302,8 @@ export interface StoredBrief extends Brief {
   since: string;
   sources: string[];
   dropped: number;
+  /** The career framework page the brief referred to, if configured. */
+  career?: string;
 }
 
 /** Keeps only strengths and growth areas whose source is one of the signals the brief was built from. */
@@ -341,6 +360,19 @@ export async function prepareBrief(
   }
   const actions = await listActions(ctx, report.email);
   if (actions.length) signals.openActions = actions.map((a) => `- (${a.owner}) ${a.text}`).join('\n');
+  const careerId = loadPeople(ctx.configDir).oneOnOne.careerPageId;
+  let career: string | undefined;
+  if (careerId) {
+    const cp = await w.confluence.get(careerId).catch(() => undefined);
+    if (cp) {
+      career = `${cp.title} v${cp.version}`;
+      signals.careerFramework = cp.storage
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .slice(0, 6000);
+      sources.push('career framework');
+    }
+  }
 
   const job = await runAgentJob(ctx, {
     kind: 'brief',
@@ -348,7 +380,7 @@ export async function prepareBrief(
     prompt: promptWith(
       `Prepare a 1:1 brief for ${report.name}${report.title ? ` (${report.title})` : ''}, covering work since ${since}. This is a preparation aid for a conversation, not an evaluation: no scores, rankings or judgements about the person, nothing about health, family or private life.
 Return {"workSince": string, "strengths": [{"text","source"}], "growth": [{"text","source"}], "goals": [{"goal","progress"}], "feedback": {"situation","behaviour","impact","ask"}, "questions": [string]}.
-Every strength and growth area cites one source exactly as it appears in the signals (a Jira key, a repo#number pull request, or "agenda", "goals", "context"). Say "no evidence in these sources" rather than guessing. Goals come only from the shared page. Feedback is a draft in situation-behaviour-impact form, only when the signals support it. At most four questions.`,
+Every strength and growth area cites one source exactly as it appears in the signals (a Jira key, a repo#number pull request, or "agenda", "goals", "context", "career framework"). When a career framework is given, relate growth areas to its expectations for the person's level. Say "no evidence in these sources" rather than guessing. Goals come only from the shared page. Feedback is a draft in situation-behaviour-impact form, only when the signals support it. At most four questions.`,
       signals,
     ),
     schema: BriefSchema,
@@ -363,6 +395,7 @@ Every strength and growth area cites one source exactly as it appears in the sig
     since,
     sources,
     dropped,
+    ...(career ? { career } : {}),
   };
   ctx
     .privateDb()
@@ -461,4 +494,19 @@ export async function scheduleOneOnOne(
     summary: `Create recurring 1:1 with ${report.name}: ${c.label}, starting ${new Date(o.slot.start).toLocaleString()}`,
   });
   return { actionId: a.id, ...(pageId ? { pageId } : {}) };
+}
+
+/**
+ * Asks HR to add someone as a report. You can only add people HR lists as your reports, so anything
+ * else is a manager-change request, sent only after you approve it.
+ */
+export function requestManagerChange(ctx: AppContext, email: string, note: string): string {
+  const me = ctx.settings.identity.email;
+  if (!me) throw new Error('Set your work email first');
+  return pendingActions(ctx.db()).create({
+    server: 'hr',
+    tool: 'request_manager_change',
+    args: { email, newManagerEmail: me, note },
+    summary: `Ask HR to make you ${email}'s manager${note ? `: ${note}` : ''}`,
+  }).id;
 }

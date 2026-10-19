@@ -6,8 +6,8 @@ import { indexDecisions, listDecisions } from './decisions.js';
 import { syncGates } from './gates.js';
 import { pruneInbox, syncDmInbox } from './inbox.js';
 import { listPackets } from './packet.js';
+import { reviewPrdFull } from './prd.js';
 import { remind } from './reminders.js';
-import { reviewPrd } from './reviews.js';
 import { proposeNudges, scoreCachedIssues } from './risk.js';
 import type { SyncJob } from './scheduler.js';
 
@@ -119,17 +119,30 @@ export function syncJobs(ctx: AppContext): Record<string, SyncJob> {
       const label = ctx.settings.jira.prdLabel;
       const pages = await w().confluence.search(`label = "${label}" AND type = page ORDER BY lastmodified DESC`, 25);
       const db = ctx.db();
-      const auto = ctx.persona()?.spec.views.includes('prd-reviews') ?? false;
+      const auto = ctx.persona()?.spec.views.includes('review-queue') ?? false;
       let reviewed = 0;
       for (const p of pages) {
         const prev = db.prepare('select version from cache_confluence_pages where page_id = ?').get(p.id) as
           | { version: number | null }
           | undefined;
+        db.prepare('insert or ignore into kv (key, value) values (?, ?)').run(
+          `prd:seen:${p.id}`,
+          new Date().toISOString(),
+        );
+        db.prepare(
+          'insert or replace into cache_confluence_pages (page_id, title, version, fetched_at) values (?, ?, ?, ?)',
+        ).run(p.id, p.title, p.version ?? null, new Date().toISOString());
         if (prev && p.version !== undefined && prev.version === p.version) continue;
         if (auto) {
-          await reviewPrd(ctx, p.id);
+          await reviewPrdFull(ctx, p.id);
           reviewed++;
-        } else remind(ctx, { kind: 'prd-review', subject: p.id, title: `PRD “${p.title}” is ready for review` });
+        } else
+          remind(ctx, {
+            kind: 'prd-review',
+            subject: p.id,
+            title: `PRD “${p.title}” is ready for review`,
+            url: `/reviews/prd/${p.id}`,
+          });
       }
       return `${pages.length} PRD page(s), ${reviewed} reviewed`;
     },

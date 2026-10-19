@@ -23,6 +23,8 @@ export const JiraConfigSchema = z.object({
   /** Field holding the PRD review result for PM tickets. */
   prdReview: z.string().optional(),
   storyPoints: z.string().optional(),
+  /** Team → Jira project key, so stories owned by another team are created in their project. */
+  teams: z.record(z.string(), z.string()).default({}),
   epicLink: z.string().optional(),
 });
 export type JiraConfig = z.infer<typeof JiraConfigSchema>;

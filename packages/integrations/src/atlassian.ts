@@ -106,6 +106,11 @@ export class Jira {
     await this.ops.run('jira.addComment', { key, body });
   }
 
+  /** `inward` is blocked by `outward` (link type "Blocks" by default). */
+  async link(inward: string, outward: string, type = 'Blocks'): Promise<void> {
+    await this.ops.run('jira.linkIssues', { inward, outward, type });
+  }
+
   async create(input: {
     project: string;
     type: string;
@@ -172,6 +177,11 @@ export class Confluence {
 
   async update(input: { pageId: string; title: string; body: string; message?: string }): Promise<ConfluencePage> {
     return normalizePage(await this.ops.run('confluence.updatePage', input));
+  }
+
+  /** Adds a footer comment, as the person. */
+  async comment(pageId: string, body: string): Promise<void> {
+    await this.ops.run('confluence.addComment', { pageId, body });
   }
 
   /** Limits a page to the given account IDs (1:1 pages: manager and report only). */

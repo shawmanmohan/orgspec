@@ -124,6 +124,18 @@ export const DEFAULT_OPERATIONS: Record<string, ToolMapping> = {
       contentFormat: 'storage',
     },
   },
+  'confluence.addComment': {
+    tool: 'atlassian__createConfluenceFooterComment',
+    args: { cloudId: '$cloudId', pageId: '$pageId', body: '$body' },
+  },
+  'jira.linkIssues': {
+    tool: 'atlassian__createIssueLink',
+    args: { cloudId: '$cloudId', inwardIssue: '$inward', outwardIssue: '$outward', type: '$type' },
+  },
+  'hr.requestManagerChange': {
+    tool: 'hr__request_manager_change',
+    args: { email: '$email', newManagerEmail: '$managerEmail', note: '$note' },
+  },
   'confluence.getComments': {
     tool: 'atlassian__getConfluencePageFooterComments',
     args: { cloudId: '$cloudId', pageId: '$pageId' },
