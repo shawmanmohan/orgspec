@@ -19,6 +19,7 @@ import { syncJobs } from './sync.js';
 import { registerTeamRoutes } from './team-pages.js';
 import { registerEmRoutes } from './web/em.js';
 import { registerIcRoutes } from './web/ic.js';
+import { registerPmRoutes } from './web/pm.js';
 import { registerSharedRoutes } from './web/shared.js';
 import { registerShellRoutes } from './web/shell.js';
 
@@ -189,6 +190,7 @@ export async function startDaemon(
   registerIcRoutes(app, ctx);
   registerSharedRoutes(app, ctx);
   registerEmRoutes(app, ctx);
+  registerPmRoutes(app, ctx);
   registerTeamRoutes(app, ctx);
 
   await app.listen({ host: '127.0.0.1', port: o.port ?? 0 });

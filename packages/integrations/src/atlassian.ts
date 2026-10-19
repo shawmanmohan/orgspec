@@ -15,6 +15,9 @@ export interface JiraIssue {
   due?: string;
   parent?: string;
   project: string;
+  /** "Blocks" links: keys this issue blocks and keys that block it. */
+  blocks: string[];
+  blockedBy: string[];
   /** Raw fields for gate fields and anything else configured. */
   fields: Record<string, unknown>;
 }
@@ -50,6 +53,16 @@ export function normalizeIssue(raw: unknown): JiraIssue {
       : {}),
     ...(priority ? { priority } : {}),
     labels: asArray(f.labels).map(String),
+    blocks: asArray(f.issuelinks).flatMap((l) =>
+      /block/i.test(pick<string>(l, 'type.name') ?? '') && pick<string>(l, 'outwardIssue.key')
+        ? [pick<string>(l, 'outwardIssue.key') as string]
+        : [],
+    ),
+    blockedBy: asArray(f.issuelinks).flatMap((l) =>
+      /block/i.test(pick<string>(l, 'type.name') ?? '') && pick<string>(l, 'inwardIssue.key')
+        ? [pick<string>(l, 'inwardIssue.key') as string]
+        : [],
+    ),
     updated: pick<string>(f, 'updated') ?? new Date(0).toISOString(),
     ...(created ? { created } : {}),
     ...(due ? { due } : {}),
@@ -83,6 +96,7 @@ export class Jira {
           'duedate',
           'parent',
           'project',
+          'issuelinks',
         ],
         limit: Math.min(100, limit - out.length),
         cursor,

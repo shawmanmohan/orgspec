@@ -25,8 +25,10 @@ export const PeopleSchema = z.object({
       careerPageId: z.string().optional(),
     })
     .default({}),
+  teamLeads: z.record(z.string(), z.string()).default({}),
 });
 export type People = z.infer<typeof PeopleSchema>;
+// teamLeads: Jira project or team → lead's work email, for nudges about unassigned tickets.
 
 export function loadPeople(configDir?: string): People {
   const f = configDir ? join(configDir, 'people.yaml') : '';

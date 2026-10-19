@@ -7,18 +7,18 @@ import { syncGates } from './gates.js';
 import { pruneInbox, syncDmInbox } from './inbox.js';
 import { listPackets } from './packet.js';
 import { reviewPrdFull } from './prd.js';
+import { programs } from './programs.js';
 import { remind } from './reminders.js';
-import { proposeNudges, scoreCachedIssues } from './risk.js';
 import type { SyncJob } from './scheduler.js';
 
 export function upsertIssues(ctx: AppContext, issues: readonly JiraIssue[]): void {
   const db = ctx.db();
   const ins = db.prepare(
-    `insert into cache_jira_issues (key, project, type, status, summary, assignee, priority, labels, epic, created_at, source_updated_at, fetched_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `insert into cache_jira_issues (key, project, type, status, summary, assignee, priority, labels, epic, links, created_at, source_updated_at, fetched_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      on conflict(key) do update set project = excluded.project, type = excluded.type, status = excluded.status,
        summary = excluded.summary, assignee = excluded.assignee, priority = excluded.priority, labels = excluded.labels,
-       epic = excluded.epic, source_updated_at = excluded.source_updated_at, fetched_at = excluded.fetched_at`,
+       epic = excluded.epic, links = excluded.links, source_updated_at = excluded.source_updated_at, fetched_at = excluded.fetched_at`,
   );
   const at = nowIso();
   for (const i of issues) {
@@ -36,6 +36,7 @@ export function upsertIssues(ctx: AppContext, issues: readonly JiraIssue[]): voi
         ...(i.statusCategory ? { statusCategory: i.statusCategory } : {}),
       }),
       i.parent ?? null,
+      JSON.stringify({ blocks: i.blocks ?? [], blockedBy: i.blockedBy ?? [] }),
       i.created ?? null,
       i.updated,
       at,
@@ -79,15 +80,9 @@ export function syncJobs(ctx: AppContext): Record<string, SyncJob> {
         for (const i of list) counts[i.statusCategory ?? i.status] = (counts[i.statusCategory ?? i.status] ?? 0) + 1;
         snap.run(epic, day, JSON.stringify({ total: list.length, counts }));
       }
-      const scores = scoreCachedIssues(ctx);
-      const recipients: Record<string, string> = {};
-      const people = ctx.config() ? (await import('./oneonone.js')).loadPeople(ctx.configDir) : undefined;
-      for (const i of issues) {
-        const slack = i.assignee?.email ? people?.people[i.assignee.email]?.slack : undefined;
-        if (slack) recipients[i.key] = slack;
-      }
-      const nudges = proposeNudges(ctx, scores, { recipients });
-      return `${issues.length} program issues, ${byEpic.size} epics, ${scores.filter((s) => s.band === 'high').length} high risk, ${nudges.length} nudge(s) proposed`;
+      // Nudges are always sent by the person from the program page; sync only scores the programs.
+      const scored = programs(ctx);
+      return `${issues.length} program issues, ${byEpic.size} epics, ${scored.filter((p) => p.status === 'off track').length} off track, ${scored.filter((p) => p.status === 'at risk').length} at risk`;
     },
     'confluence.sources': async () => {
       const cfg = ctx.config();

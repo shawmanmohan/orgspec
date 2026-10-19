@@ -95,6 +95,14 @@ ${JSON_ONLY}`,
 
 ${JSON_ONLY}`,
   },
+  'status-writer': {
+    description: 'Drafts a program status update from Jira, PRs, CI and the risk score',
+    model: 'sonnet',
+    tools: [],
+    body: `You draft a short program status update for a project manager to edit and share. Every claim names its source ticket key or "forecast". Report on the work, never on individuals' performance. ${UNTRUSTED}
+
+${JSON_ONLY}`,
+  },
   'decision-writer': {
     description: 'Drafts a decision record from a discussion',
     model: 'sonnet',

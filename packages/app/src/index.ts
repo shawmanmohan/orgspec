@@ -15,6 +15,7 @@ export * from './jobs.js';
 export * from './oneonone.js';
 export * from './packet.js';
 export * from './prd.js';
+export * from './programs.js';
 export * from './prs.js';
 export * from './reminder-rules.js';
 export * from './reminders.js';
