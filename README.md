@@ -94,6 +94,35 @@ Every command accepts `--json` (exactly one JSON document on stdout) and exits 1
 
 Claude Code calls `orgspec hook pre-tool-use|checkpoint|restore|session-end` and `orgspec gateway --stdio --session <id>`.
 
+## Dashboard
+
+`orgspec daemon` serves the dashboard on http://127.0.0.1:47320 (any free port when that is taken); `orgspec dashboard` opens it with a one-time login. Each persona's `views` decide its navigation. Every screen in the design canvas is built:
+
+| Area | Screens |
+| --- | --- |
+| Everyone | Choose your workspace · Settings and privacy · Approvals · Reminders · Task inbox (send to Jira) · Slack summarizer · Decisions (browse and record) · My agents |
+| Engineer | My work · Ticket (send to agent) · My 1:1 evidence |
+| Engineering manager | Review queue · PRD review · Task breakdown to Jira · Team & 1:1s · 1:1 prep |
+| Project manager | Programs · Program detail with nudges · Share status update |
+| Admin mode | Sources & compile · Bundle review · Waivers · Personas · Sync |
+
+Anything that writes to Jira, Confluence, Slack or a calendar runs as you, only after a click, and messages a Claude session wants to send wait under Approvals. Reminders arrive as a Slack DM to yourself (or a desktop notification without Slack) and link back to the dashboard.
+
+### Try it without real systems
+
+`scripts/demo-workplace.mjs` is a fictional workplace behind MCP (HR, calendar, Jira, Confluence, Slack and CI). Point `integrations.yaml` at it, one server per kind:
+
+```yaml
+servers:
+  atlassian: { transport: stdio, command: node, args: [scripts/demo-workplace.mjs, atlassian, /tmp/demo-state.json] }
+  hr: { transport: stdio, command: node, args: [scripts/demo-workplace.mjs, hr, /tmp/demo-state.json] }
+  calendar: { transport: stdio, command: node, args: [scripts/demo-workplace.mjs, calendar, /tmp/demo-state.json] }
+  slack: { transport: stdio, command: node, args: [scripts/demo-workplace.mjs, slack, /tmp/demo-state.json] }
+  ci: { transport: stdio, command: node, args: [scripts/demo-workplace.mjs, ci, /tmp/demo-state.json] }
+```
+
+Set your identity to `you@acme.io` (Slack ID `U00YOU`) and run `orgspec sync <source>` for each source. Reviews, briefs, summaries and compiles still run through your own `claude` CLI.
+
 ## Configuration
 
 [`examples/orgspec-config`](examples/orgspec-config) is a complete `orgspec-config` repository that a test keeps valid. It contains:
@@ -129,3 +158,6 @@ Delta specs use `## ADDED`, `## MODIFIED`, `## REMOVED` and `## RENAMED Requirem
 - **Tool names:** gateway tools are named `server__tool` (for example `atlassian__getJiraIssue`), because MCP tool names cannot contain dots.
 - **Hook latency:** the hook loads only a light module and takes about 20 ms. With the daemon running, `ORGSPEC_HOOK_MODE=socket` forwards to its Unix socket.
 - **Ticket folders:** the default ticket root is `~/orgspec-tickets`. A workspace is a folder whose `orgspec/repo.yaml` exists, and the search stops at the git root.
+- **Claude sessions:** OrgSpec starts every session with `--mcp-config .orgspec/mcp.json --strict-mcp-config`, so the gateway loads without the project MCP approval prompt and no other MCP server can. Ticket folders also get `.claude/settings.json` with the hooks, which apply until IT installs the managed settings (`allowManagedHooksOnly` then takes over). Trust the ticket root once with `claude`; background sessions in every ticket folder under it then start.
+- **Programs:** risk scores are deterministic (dependencies, a resampled-throughput forecast, activity, review wait, scope), never about people; Claude only drafts summaries and status updates.
+- **Compiles:** the extractor sees the rules currently compiled from each page so IDs and checks stay stable; publishing is blocked when golden evals regress or a persona would lose all its rules.
