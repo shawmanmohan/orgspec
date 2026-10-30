@@ -61,7 +61,7 @@ const pkg = {
   engines: { node: '>=22.13' },
   os: ['darwin', 'linux'],
   repository: { type: 'git', url: 'git+https://github.com/shawmanmohan/orgspec.git' },
-  publishConfig: { access: 'restricted' },
+  publishConfig: { access: 'public' },
   license: 'UNLICENSED',
 };
 writeFileSync(join(out, 'package.json'), `${JSON.stringify(pkg, null, 2)}\n`);

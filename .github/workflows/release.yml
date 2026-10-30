@@ -49,7 +49,7 @@ jobs:
         run: |
           tag=latest
           case "${{ steps.version.outputs.version }}" in *-*) tag=next ;; esac
-          npm publish --access restricted --tag "$tag"
+          npm publish --access public --tag "$tag"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Attach the tarball to a GitHub release

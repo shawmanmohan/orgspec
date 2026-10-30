@@ -65,11 +65,7 @@ OrgSpec is one Node application that runs only on each person's machine. There i
 
 ## Install
 
-The package is published to npm with restricted access. You need an npm account that has been given access to `@shawmanmohan/orgspec`.
-
-```bash
-npm login
-```
+The package is public on npm:
 
 ```bash
 npm install -g @shawmanmohan/orgspec
@@ -468,7 +464,7 @@ Run the CLI from source with `pnpm orgspec <command>`.
 
 ## Releasing
 
-GitHub Actions publishes `@shawmanmohan/orgspec` to npm with restricted access.
+GitHub Actions publishes `@shawmanmohan/orgspec` to npm as a public package.
 
 - **CI** (`.github/workflows/ci.yml`) runs on every push to `main` and on every pull request, on Ubuntu and macOS. It lints, builds and tests, then assembles the npm package and smoke-tests installing it.
 - **Release** (`.github/workflows/release.yml`) runs when a `v*.*.*` tag is pushed. It runs the same checks, builds the package at the tag's version and publishes it to npm. It then attaches the tarball to a GitHub release.
@@ -484,8 +480,6 @@ GitHub Actions publishes `@shawmanmohan/orgspec` to npm with restricted access.
    gh secret set NPM_TOKEN --repo shawmanmohan/orgspec
    ```
 
-Publishing a restricted scoped package needs a paid npm plan.
-
 **Cutting a release**
 
 ```bash
@@ -495,8 +489,6 @@ git tag v0.2.0
 ```bash
 git push origin v0.2.0
 ```
-
-To give someone access to install the package, grant their npm account access to it, either on npmjs.com or with `npm access grant`.
 
 ---
 
