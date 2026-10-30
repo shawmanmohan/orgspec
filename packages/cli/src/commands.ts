@@ -11,9 +11,11 @@ import {
   adminPublish,
   adminRollback,
   bundleVersions,
+  checkIntegration,
   cleanupPacket,
   completeReminder,
   createPacket,
+  describeReport,
   doctor,
   endZen,
   executePending,
@@ -186,7 +188,56 @@ export function registerAppCommands(program: Command, h: CommandHelpers): void {
         (u) => openBrowser(c, u.toString()),
         () => waitForAuthCode(),
       );
-      emit({ server, tools }, () => `Connected to ${server} (${tools} tools).`);
+      const report = await checkIntegration(c, server);
+      const problems = describeReport(report);
+      emit({ server, tools, report }, () =>
+        [
+          `Connected to ${server} (${tools} tools).`,
+          problems.length
+            ? `${problems.length} mapping problem(s) to fix in integrations.yaml:\n  ${problems.join('\n  ')}`
+            : `All ${report.operations} OrgSpec operation(s) for ${server} match its tools.`,
+        ].join('\n'),
+      );
+    });
+
+  program
+    .command('integrations')
+    .description("check OrgSpec's tool mappings against each MCP server's live tool list")
+    .command('check')
+    .argument('[servers...]', 'servers to check (default: all in integrations.yaml)')
+    .action(async (servers: string[]) => {
+      const c = ctx();
+      const names = servers.length ? servers : Object.keys(c.config()?.integrations.servers ?? {});
+      const reports: (Awaited<ReturnType<typeof checkIntegration>> | { server: string; error: string })[] = [];
+      for (const s of names) {
+        try {
+          reports.push(await checkIntegration(c, s));
+        } catch (e) {
+          reports.push({ server: s, error: (e as Error).message });
+        }
+      }
+      const bad = reports
+        .filter((r) => 'error' in r || describeReport(r).length > 0)
+        .map((r) =>
+          error(
+            'integration_mapping',
+            'error' in r ? `${r.server}: ${r.error}` : `${r.server}: ${describeReport(r).length} mapping problem(s)`,
+          ),
+        );
+      emit(
+        { reports },
+        () =>
+          reports
+            .map((r) => {
+              if ('error' in r) return `✗ ${r.server}: ${r.error}`;
+              const p = describeReport(r);
+              return p.length
+                ? `✗ ${r.server} (${r.tools} tools)\n  ${p.join('\n  ')}`
+                : `✓ ${r.server}: ${r.operations} operation(s) match ${r.tools} tools`;
+            })
+            .join('\n'),
+        bad,
+      );
     });
 
   // ---------- ticket packets ----------

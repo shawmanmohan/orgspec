@@ -97,7 +97,7 @@ A single-file executable is also available. It bundles Node, so it needs nothing
    orgspec setup --config acme/orgspec-config --email you@acme.io
    ```
 
-2. **Connect the MCP servers** your organisation uses. This runs each server's OAuth sign-in:
+2. **Connect the MCP servers** your organisation uses. This runs each server's OAuth sign-in, then checks OrgSpec's tool mappings against the server's live tool list. For Atlassian it also prints the `cloudId` that `integrations.yaml` needs:
 
    ```bash
    orgspec connect atlassian
@@ -156,6 +156,7 @@ servers:
   calendar:  { transport: stdio, command: orgspec-demo-workplace, args: [calendar,  /tmp/demo-state.json] }
   slack:     { transport: stdio, command: orgspec-demo-workplace, args: [slack,     /tmp/demo-state.json] }
   ci:        { transport: stdio, command: orgspec-demo-workplace, args: [ci,        /tmp/demo-state.json] }
+constants: { cloudId: demo-cloud }
 ```
 
 The example config is in the installed package under `examples/orgspec-config`. You can find the package folder with `npm root -g`.
@@ -298,7 +299,7 @@ Every command accepts `--json`, which prints exactly one JSON document on stdout
 | Area | Commands |
 | --- | --- |
 | Specs | `init`, `new <JIRA>`, `status`, `show`, `list`, `validate [--strict]`, `rebase`, `archive [--ci]`, `trace` |
-| Setup | `setup`, `doctor`, `managed-settings`, `connect <mcp-server>`, `service install` |
+| Setup | `setup`, `doctor`, `managed-settings`, `connect <mcp-server>`, `integrations check [server…]`, `service install` |
 | Work | `packet <JIRA>`, `packets`, `resume`, `cleanup`, `session list\|logs\|attach\|stop\|respawn\|rm` |
 | Review | `review prd <pageId>`, `review design <change>`, `plan <change>`, `verify <change>`, `findings`, `approve <change> <artifact>` |
 | Focus | `zen [status]`, `zen suggest`, `zen start [--minutes] [--item] [--freeze] [--auto-reply]`, `zen done <id>`, `zen extend`, `zen end` |
@@ -344,6 +345,14 @@ The organisation's admins keep one git repository. [`examples/orgspec-config`](e
 operations:
   ci.listRuns: { tool: ci__builds_search, args: { project: $repo, branch: $branch } }
 ```
+
+`orgspec integrations check` finds the mappings to fix. For each server it reports:
+- tools the server doesn't offer, with the closest name it does offer
+- arguments that aren't in a tool's input schema
+- required arguments that aren't mapped
+- for Atlassian, whether `constants.cloudId` is one of your sites
+
+`orgspec connect` and `orgspec doctor` run the same check. The defaults follow the Atlassian Rovo MCP server's v2 tool names. Use `https://mcp.atlassian.com/v2/mcp?tools=all`, the flat tool list that Atlassian recommends for gateways. Atlassian publishes tool names but not argument schemas, so run the check once with a real sign-in.
 
 **Compiling the constitution** is done in Admin mode, or from the CLI:
 

@@ -7,6 +7,7 @@ import { exists, readText, writeFileAtomic } from '@orgspec/core';
 import { Gateway } from '@orgspec/gateway';
 import type { AppContext } from './context.js';
 import { searchDecisions } from './decisions.js';
+import { checkIntegration, describeReport } from './integration-check.js';
 import { findSessionFolder, readSession } from './session.js';
 
 const LABEL = 'com.orgspec.daemon';
@@ -159,8 +160,16 @@ export async function doctor(ctx: AppContext, o: { hookTiming?: () => Promise<nu
   if (cfg) {
     for (const name of Object.keys(cfg.integrations.servers)) {
       try {
-        const tools = await ctx.pool().tools(name);
-        add({ name: `MCP ${name}`, ok: true, detail: `${tools.length} tools` });
+        const r = await checkIntegration(ctx, name);
+        const problems = describeReport(r);
+        add({
+          name: `MCP ${name}`,
+          ok: problems.length === 0,
+          detail: problems.length
+            ? `${r.tools} tools; ${problems.length} problem(s): ${problems.join('; ')}`
+            : `${r.tools} tools; ${r.operations} operation(s) match`,
+          fix: `Fix the mappings in integrations.yaml (orgspec integrations check ${name} shows each one)`,
+        });
       } catch (e) {
         add({
           name: `MCP ${name}`,

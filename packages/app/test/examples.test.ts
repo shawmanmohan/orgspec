@@ -35,7 +35,7 @@ describe('examples/orgspec-config', () => {
       policy.decide({ persona: 'engineer', server: 'atlassian', tool: 'getJiraIssue', readOnly: true }).decision,
     ).toBe('allow');
     expect(
-      policy.decide({ persona: 'engineer', server: 'atlassian', tool: 'addCommentToJiraIssue', readOnly: false })
+      policy.decide({ persona: 'engineer', server: 'atlassian', tool: 'addOrEditJiraIssueComment', readOnly: false })
         .decision,
     ).toBe('confirm');
     expect(policy.decide({ persona: 'engineer', server: 'ci', tool: 'delete_run', readOnly: false }).decision).toBe(

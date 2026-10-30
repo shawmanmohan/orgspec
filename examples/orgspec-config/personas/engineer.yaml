@@ -21,11 +21,11 @@ spec:
         [
           "getJiraIssue",
           "searchJiraIssuesUsingJql",
-          "getConfluencePage",
-          "searchConfluenceUsingCql",
-          "addCommentToJiraIssue"
+          "getConfluenceContent",
+          "searchConfluence",
+          "addOrEditJiraIssueComment"
         ]
-      confirm: [ "addCommentToJiraIssue" ]
+      confirm: [ "addOrEditJiraIssueComment" ]
     - server: ci
       tools: [ "list_runs", "get_run", "get_run_logs" ]
   github:

@@ -12,6 +12,7 @@ export * from './evidence.js';
 export * from './gates.js';
 export * from './hook.js';
 export * from './inbox.js';
+export * from './integration-check.js';
 export * from './jobs.js';
 export * from './oneonone.js';
 export * from './packet.js';

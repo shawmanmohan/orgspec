@@ -206,10 +206,10 @@ describe('PRD review', () => {
     const comments: string[] = [];
     const connector = memoryConnector({
       atlassian: {
-        tools: [tool('getConfluencePage'), tool('createConfluenceFooterComment')],
+        tools: [tool('getConfluenceContent'), tool('createConfluenceComment')],
         handle: (t, a) => {
-          if (t === 'createConfluenceFooterComment') comments.push(String(a.body));
-          return t === 'getConfluencePage' ? page : { ok: true };
+          if (t === 'createConfluenceComment') comments.push(String(a.body));
+          return t === 'getConfluenceContent' ? page : { ok: true };
         },
       },
     });
@@ -283,7 +283,7 @@ describe('task breakdown', () => {
             created.push({ project: String(a.projectKey), type: String(a.issueTypeName), summary: String(a.summary) });
             return { key: `${a.projectKey}-${++n}` };
           }
-          if (t === 'createIssueLink') links.push([String(a.inwardIssue), String(a.outwardIssue)]);
+          if (t === 'createJiraIssueLink') links.push([String(a.inwardIssue), String(a.outwardIssue)]);
           return { ok: true };
         },
       },

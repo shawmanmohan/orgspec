@@ -18,16 +18,16 @@ spec:
         [
           "getJiraIssue",
           "searchJiraIssuesUsingJql",
-          "getConfluencePage",
-          "createConfluencePage",
-          "updateConfluencePage",
-          "setConfluencePageRestrictions"
+          "getConfluenceContent",
+          "createConfluenceContent",
+          "updateConfluenceContent",
+          "setConfluenceContentRestrictionState"
         ]
       confirm:
         [
-          "createConfluencePage",
-          "updateConfluencePage",
-          "setConfluencePageRestrictions"
+          "createConfluenceContent",
+          "updateConfluenceContent",
+          "setConfluenceContentRestrictionState"
         ]
     - server: hr
       tools: [ "get_person", "list_reports", "get_time_off" ]

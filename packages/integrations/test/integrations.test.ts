@@ -1,6 +1,15 @@
 import { fakeRunner } from '@orgspec/core';
 import { describe, expect, it } from 'vitest';
-import { ensureAccount, fillTemplate, gh, remoteOwner, type ToolCaller, workplace } from '../src/index.js';
+import {
+  checkMappings,
+  closestTool,
+  ensureAccount,
+  fillTemplate,
+  gh,
+  remoteOwner,
+  type ToolCaller,
+  workplace,
+} from '../src/index.js';
 
 const text = (v: unknown) => ({ content: [{ type: 'text', text: JSON.stringify(v) }] });
 
@@ -27,6 +36,41 @@ describe('operation templates', () => {
       c: 'id-1',
       d: [1],
     });
+  });
+});
+
+describe('mapping check', () => {
+  const ops = {
+    'jira.getIssue': { tool: 'atlassian__getJiraIssue', args: { cloudId: '$cloudId', issueIdOrKey: '$key' } },
+    'confluence.getPage': { tool: 'atlassian__getConfluencePage', args: { cloudId: '$cloudId', pageId: '$pageId' } },
+    'jira.addComment': { tool: 'atlassian__addOrEditJiraIssueComment', args: { cloudId: '$cloudId', body: '$b' } },
+    'slack.post': { tool: 'slack__chat_post_message', args: {} },
+  };
+  const tools = [
+    {
+      name: 'getJiraIssue',
+      inputSchema: { properties: { cloudId: {}, issueIdOrKey: {}, fields: {} }, required: ['cloudId', 'issueIdOrKey'] },
+    },
+    { name: 'getConfluenceContent', inputSchema: { properties: { cloudId: {}, contentId: {} } } },
+    {
+      name: 'addOrEditJiraIssueComment',
+      inputSchema: { properties: { cloudId: {}, issueIdOrKey: {}, commentBody: {} }, required: ['issueIdOrKey'] },
+    },
+  ];
+
+  it('reports missing tools with the closest match, unknown and missing arguments, for one server only', () => {
+    const issues = checkMappings(ops, 'atlassian', tools);
+    expect(issues.map((i) => [i.operation, i.problem])).toEqual([
+      ['confluence.getPage', 'missing-tool'],
+      ['jira.addComment', 'unknown-args'],
+      ['jira.addComment', 'missing-required'],
+    ]);
+    expect(issues[0]?.detail).toContain('closest is getConfluenceContent');
+    expect(issues[1]?.detail).toContain('body not in its schema');
+  });
+
+  it('suggests nothing when no tool is close', () => {
+    expect(closestTool('listRuns', tools)).toBeUndefined();
   });
 });
 
@@ -59,7 +103,7 @@ describe('Atlassian adapters', () => {
   it('reads Confluence storage and versions', async () => {
     const w = workplace(
       stubCaller({
-        atlassian__getConfluencePage: () => ({
+        atlassian__getConfluenceContent: () => ({
           id: '42',
           title: 'Git',
           version: { number: 7 },
