@@ -57,13 +57,14 @@ const pkg = {
   description: 'Spec-driven development that follows your organisation’s constitution, run locally through the Claude CLI.',
   type: 'commonjs',
   bin: { orgspec: 'bin/orgspec.cjs', 'orgspec-demo-workplace': 'demo/demo-workplace.mjs' },
-  files: ['bin', 'demo', 'examples', 'README.md'],
+  files: ['bin', 'demo', 'examples', 'README.md', 'LICENSE'],
   engines: { node: '>=22.13' },
   os: ['darwin', 'linux'],
   repository: { type: 'git', url: 'git+https://github.com/shawmanmohan/orgspec.git' },
   publishConfig: { access: 'public' },
-  license: 'UNLICENSED',
+  license: 'MIT',
 };
 writeFileSync(join(out, 'package.json'), `${JSON.stringify(pkg, null, 2)}\n`);
 copyFileSync(join(root, 'README.md'), join(out, 'README.md'));
+copyFileSync(join(root, 'LICENSE'), join(out, 'LICENSE'));
 console.log(`npm package: ${out} (${NAME}@${version})`);

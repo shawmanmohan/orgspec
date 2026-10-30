@@ -503,3 +503,9 @@ git push origin v0.2.0
 | Sync shows a source as failing | Open **Sync** in Admin mode, or run `orgspec sync <source> --json` to see the error. Tool names may need an `operations:` override |
 | No spec drift reminders | Add a `capabilities:` map to each repository's `orgspec/repo.yaml` |
 | The keychain prompts every time | Choose **Always Allow** for OrgSpec's keychain item, or use `secret-tool` (libsecret) on Linux |
+
+---
+
+## License
+
+[MIT](LICENSE)
