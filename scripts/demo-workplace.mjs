@@ -242,7 +242,7 @@ const TOOLS = {
   },
   atlassian: {
     searchJiraIssuesUsingJql: {
-      schema: obj({ cloudId: str, jql: str, maxResults: { type: 'number' } }, ['jql']),
+      schema: obj({ cloudId: str, jql: str, fields: arr, maxResults: { type: 'number' }, nextPageToken: str }, ['jql']),
       run: (s, a) => {
         const jql = a.jql ?? '';
         const who = /assignee\s*=\s*"([^"]+)"/.exec(jql)?.[1] ?? (/assignee\s*=\s*currentUser\(\)/.test(jql) ? ME : undefined);
@@ -260,11 +260,12 @@ const TOOLS = {
         };
       },
     },
-    getJiraIssue: { schema: obj({ cloudId: str, issueIdOrKey: str }, ['issueIdOrKey']), run: (s, a) => s.issues.find((i) => i.key === a.issueIdOrKey) ?? { key: a.issueIdOrKey, fields: { summary: `Demo ticket ${a.issueIdOrKey}`, status: { name: 'In Progress' }, issuetype: { name: 'Story' }, project: { key: String(a.issueIdOrKey).split('-')[0] } } } },
+    getJiraIssue: { schema: obj({ cloudId: str, issueIdOrKey: str, fields: arr }, ['issueIdOrKey']), run: (s, a) => s.issues.find((i) => i.key === a.issueIdOrKey) ?? { key: a.issueIdOrKey, fields: { summary: `Demo ticket ${a.issueIdOrKey}`, status: { name: 'In Progress' }, issuetype: { name: 'Story' }, project: { key: String(a.issueIdOrKey).split('-')[0] } } } },
+    transitionJiraIssue: { schema: obj({ cloudId: str, issueIdOrKey: str, transition: { type: 'object' } }, ['issueIdOrKey']), run: (s, a) => (s.created.push({ kind: 'transition', key: a.issueIdOrKey, transition: a.transition }), save(s), { ok: true }) },
     editJiraIssue: { schema: obj({ cloudId: str, issueIdOrKey: str, fields: { type: 'object' } }), run: (s, a) => (s.created.push({ kind: 'edit', key: a.issueIdOrKey, fields: a.fields }), save(s), { ok: true }) },
-    addCommentToJiraIssue: { schema: obj({ cloudId: str, issueIdOrKey: str, commentBody: str }), run: (s, a) => (s.comments.push({ on: a.issueIdOrKey, body: a.commentBody }), save(s), { ok: true }) },
+    addOrEditJiraIssueComment: { schema: obj({ cloudId: str, issueIdOrKey: str, commentBody: str }), run: (s, a) => (s.comments.push({ on: a.issueIdOrKey, body: a.commentBody }), save(s), { ok: true }) },
     createJiraIssue: {
-      schema: obj({ cloudId: str, projectKey: str, issueTypeName: str, summary: str, description: str }, ['projectKey', 'summary']),
+      schema: obj({ cloudId: str, projectKey: str, issueTypeName: str, summary: str, description: str, additional_fields: { type: 'object' } }, ['projectKey', 'summary']),
       run: (s, a) => {
         const key = `${a.projectKey}-${++s.counter}`;
         s.issues.push({ key, fields: { summary: a.summary, status: { name: 'To Do', statusCategory: { key: 'new' } }, project: { key: a.projectKey }, issuetype: { name: a.issueTypeName ?? 'Story' }, updated: new Date().toISOString(), labels: [], issuelinks: [] } });
@@ -273,17 +274,17 @@ const TOOLS = {
         return { key };
       },
     },
-    createIssueLink: { schema: obj({ cloudId: str, inwardIssue: str, outwardIssue: str, type: str }), run: (s, a) => (s.links.push(a), save(s), { ok: true }) },
-    getConfluencePage: {
-      schema: obj({ cloudId: str, pageId: str }, ['pageId']),
+    createJiraIssueLink: { schema: obj({ cloudId: str, inwardIssue: str, outwardIssue: str, type: str }), run: (s, a) => (s.links.push(a), save(s), { ok: true }) },
+    getConfluenceContent: {
+      schema: obj({ cloudId: str, pageId: str, contentFormat: str }, ['pageId']),
       run: (s, a) => {
         const p = s.pages[a.pageId];
         if (!p) throw new Error(`No page ${a.pageId}`);
         return { id: p.id, title: p.title, version: { number: p.version }, body: { storage: { value: p.body } } };
       },
     },
-    createConfluencePage: {
-      schema: obj({ cloudId: str, spaceId: str, title: str, body: str }, ['title', 'body']),
+    createConfluenceContent: {
+      schema: obj({ cloudId: str, spaceId: str, parentId: str, title: str, body: str, contentFormat: str }, ['title', 'body']),
       run: (s, a) => {
         const id = `p-${Date.now()}`;
         s.pages[id] = { id, title: a.title, version: 1, body: a.body };
@@ -291,8 +292,8 @@ const TOOLS = {
         return { id, title: a.title, version: { number: 1 }, body: { storage: { value: a.body } } };
       },
     },
-    updateConfluencePage: {
-      schema: obj({ cloudId: str, pageId: str, title: str, body: str }, ['pageId', 'body']),
+    updateConfluenceContent: {
+      schema: obj({ cloudId: str, pageId: str, title: str, body: str, versionMessage: str, contentFormat: str }, ['pageId', 'body']),
       run: (s, a) => {
         const p = s.pages[a.pageId];
         if (!p) throw new Error(`No page ${a.pageId}`);
@@ -303,10 +304,12 @@ const TOOLS = {
         return { id: p.id, title: p.title, version: { number: p.version }, body: { storage: { value: p.body } } };
       },
     },
-    createConfluenceFooterComment: { schema: obj({ cloudId: str, pageId: str, body: str }), run: (s, a) => (s.comments.push({ on: a.pageId, body: a.body }), save(s), { ok: true }) },
-    setConfluencePageRestrictions: { schema: obj({ cloudId: str, pageId: str, users: arr }), run: () => ({ ok: true }) },
-    searchConfluenceUsingCql: {
-      schema: obj({ cloudId: str, cql: str }),
+    listConfluenceComments: { schema: obj({ cloudId: str, pageId: str }, ['pageId']), run: (s, a) => ({ results: s.comments.filter((c) => c.on === a.pageId).map((c, i) => ({ id: String(i + 1), body: { storage: { value: c.body } } })) }) },
+    getAccessibleAtlassianResources: { schema: obj({}), run: () => [{ id: 'demo-cloud', url: 'https://acme.atlassian.net', name: 'acme' }] },
+    createConfluenceComment: { schema: obj({ cloudId: str, pageId: str, body: str }), run: (s, a) => (s.comments.push({ on: a.pageId, body: a.body }), save(s), { ok: true }) },
+    setConfluenceContentRestrictionState: { schema: obj({ cloudId: str, pageId: str, users: arr }), run: () => ({ ok: true }) },
+    searchConfluence: {
+      schema: obj({ cloudId: str, cql: str, limit: { type: 'number' } }),
       run: (s, a) => {
         const cql = a.cql ?? '';
         const label = /label\s*=\s*"([^"]+)"/.exec(cql)?.[1];
@@ -317,9 +320,9 @@ const TOOLS = {
     },
   },
   slack: {
-    conversations_list: { schema: obj({ types: str }), run: () => ({ channels: [{ id: 'D-asha', user: 'U03ASHA' }, { id: 'D-lena', user: 'U04LENA' }, { id: 'D-marco', user: 'U05MARCO' }, { id: 'D-dana', user: 'U06DANA' }] }) },
+    conversations_list: { schema: obj({ types: str, limit: { type: 'number' }, cursor: str }), run: () => ({ channels: [{ id: 'D-asha', user: 'U03ASHA' }, { id: 'D-lena', user: 'U04LENA' }, { id: 'D-marco', user: 'U05MARCO' }, { id: 'D-dana', user: 'U06DANA' }] }) },
     conversations_history: {
-      schema: obj({ channel: str, oldest: str, limit: { type: 'number' } }, ['channel']),
+      schema: obj({ channel: str, oldest: str, limit: { type: 'number' }, cursor: str }, ['channel']),
       run: (s, a) => {
         const id = s.channels[a.channel] ? a.channel : `C-${String(a.channel).replace(/^#/, '')}`;
         return { messages: (s.channels[id] ?? []).filter((m) => !a.oldest || Number(m.ts) > Number(a.oldest)).map((m) => ({ ...m, channel: id })) };
@@ -336,15 +339,27 @@ const TOOLS = {
       },
     },
     users_info: { schema: obj({ user: str }), run: (_s, a) => ({ user: { id: a.user } }) },
+    users_profile_get: { schema: obj({}), run: (s) => ({ profile: s.status ?? { status_text: '', status_emoji: '', status_expiration: 0 } }) },
+    users_profile_set: {
+      schema: obj({ status_text: str, status_emoji: str, status_expiration: { type: 'number' } }),
+      run: (s, a) => {
+        s.status = { status_text: a.status_text ?? '', status_emoji: a.status_emoji ?? '', status_expiration: a.status_expiration ?? 0 };
+        save(s);
+        return { ok: true, profile: s.status };
+      },
+    },
+    dnd_set_snooze: { schema: obj({ num_minutes: { type: 'number' } }, ['num_minutes']), run: (s, a) => ((s.dnd = { minutes: a.num_minutes, at: new Date().toISOString() }), save(s), { ok: true, snooze_enabled: true }) },
+    dnd_end_snooze: { schema: obj({}), run: (s) => ((s.dnd = null), save(s), { ok: true, snooze_enabled: false }) },
     saved_list: { schema: obj({}), run: (s) => ({ items: s.saved.map((x) => ({ channel: x.channel, message: s.channels[x.channel]?.find((m) => m.ts === x.ts) })) }) },
   },
   ci: {
     list_runs: {
-      schema: obj({ repo: str, branch: str, limit: { type: 'number' } }),
+      schema: obj({ repo: str, branch: str, commit: str, limit: { type: 'number' } }),
       run: (_s, a) => ({ runs: a.branch ? [{ id: `${a.branch}-1`, branch: a.branch, status: a.branch.includes('42') ? 'success' : 'running', steps: [{ name: 'orgspec check', status: 'success' }, { name: 'tests', status: 'success' }], url: `https://ci.acme.io/${a.repo}/${a.branch}` }] : [] }),
     },
     get_run: { schema: obj({ runId: str }), run: (_s, a) => ({ id: a.runId, status: 'success', steps: [] }) },
-    get_run_logs: { schema: obj({ runId: str }), run: () => ({ logs: 'orgspec check: 0 errors' }) },
+    rerun: { schema: obj({ runId: str }, ['runId']), run: (_s, a) => ({ id: `${a.runId}-rerun`, status: 'running' }) },
+    get_run_logs: { schema: obj({ runId: str, step: str }), run: () => ({ logs: 'orgspec check: 0 errors' }) },
   },
 };
 

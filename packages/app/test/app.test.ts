@@ -9,7 +9,9 @@ import { findWorkspace, initWorkspace, newChange } from '@orgspec/spec-engine';
 import { describe, expect, it } from 'vitest';
 import {
   addApproval,
+  checkIntegration,
   checkpointHook,
+  describeReport,
   effectiveInterval,
   groundFindings,
   indexDecisions,
@@ -289,7 +291,7 @@ describe('reviews', () => {
     });
     const connector = memoryConnector({
       atlassian: {
-        tools: [{ name: 'getConfluencePage', inputSchema: { type: 'object' } }],
+        tools: [{ name: 'getConfluenceContent', inputSchema: { type: 'object' } }],
         handle: () => ({
           id: '77',
           title: 'Checkout PRD',
@@ -302,6 +304,32 @@ describe('reviews', () => {
     const r = await reviewPrd(ctx, '77');
     expect(r.findings[0]).toMatchObject({ rubricId: 'pm.prd.metrics', severity: 'warning', status: 'open' });
     expect(jobs.calls[0]?.prompt).toContain('<untrusted source="document">');
+  });
+});
+
+describe('integration check', () => {
+  it('finds the cloudId for the configured site and flags renamed tools', async () => {
+    const { dir } = orgConfig(RULES, {
+      'integrations.yaml':
+        'servers:\n  atlassian: { transport: stdio, command: x, hosts: [acme.atlassian.net] }\nconstants: { cloudId: "00000000-0000-0000-0000-000000000000" }\noperations:\n  jira.getIssue: { tool: atlassian__getIssue, args: {} }\n',
+    });
+    const connector = memoryConnector({
+      atlassian: {
+        tools: [
+          { name: 'getAccessibleAtlassianResources', inputSchema: { type: 'object' } },
+          { name: 'getJiraIssue', inputSchema: { type: 'object' } },
+        ],
+        handle: () => [
+          { id: 'other', url: 'https://other.atlassian.net', name: 'other' },
+          { id: 'c-acme', url: 'https://acme.atlassian.net', name: 'acme' },
+        ],
+      },
+    });
+    const r = await checkIntegration(makeContext({ connector, configDir: dir }), 'atlassian');
+    expect(r.cloudId).toEqual({ configured: '00000000-0000-0000-0000-000000000000', ok: false, suggested: 'c-acme' });
+    const lines = describeReport(r);
+    expect(lines).toContain('jira.getIssue → getIssue: not offered by atlassian; closest is getJiraIssue');
+    expect(lines).toContain('constants.cloudId should be "c-acme" (integrations.yaml)');
   });
 });
 
@@ -328,7 +356,12 @@ describe('DM inbox', () => {
       },
     });
     const ctx = makeContext({ jobs, connector, configDir: dir, settings: { identity: { slackUserId: 'U1' } } });
-    expect(await syncDmInbox(ctx)).toEqual({ conversations: 1, messages: 2, tasks: 1 });
+    expect(await syncDmInbox(ctx)).toEqual({
+      conversations: 1,
+      messages: 2,
+      tasks: 1,
+      fromOthers: [{ conversation: 'D1', user: 'U2' }],
+    });
     expect((await listInbox(ctx))[0]?.title).toBe('Review PR');
     const raw = ctx.privateDb().prepare('select payload from inbox_tasks').get() as { payload: string };
     expect(raw.payload).not.toContain('Review PR');
@@ -365,6 +398,7 @@ describe('daemon', () => {
         '/actions',
         '/reminders',
         '/settings',
+        '/zen',
       ]) {
         const r = await fetch(`${d.url}${path}`, { headers: jar });
         expect([path, r.status]).toEqual([path, 200]);

@@ -2,7 +2,7 @@
 servers:
   atlassian:
     transport: http
-    url: https://mcp.atlassian.com/v1/mcp
+    url: https://mcp.atlassian.com/v2/mcp?tools=all # flat tool list, as Atlassian recommends for gateways
     hosts: [acme.atlassian.net]
     oauth: { scopes: [] }
   slack:
@@ -21,7 +21,7 @@ servers:
     transport: http
     url: https://calendar-mcp.acme.io/mcp
 constants:
-  cloudId: "00000000-0000-0000-0000-000000000000" # Atlassian cloud ID
+  cloudId: "00000000-0000-0000-0000-000000000000" # Atlassian cloud ID; orgspec connect atlassian prints yours
 # Override any logical operation when your server's tool names differ, for example:
 # operations:
 #   ci.listRuns: { tool: ci__builds_search, args: { project: $repo, branch: $branch } }

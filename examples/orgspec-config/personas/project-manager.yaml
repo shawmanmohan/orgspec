@@ -18,12 +18,12 @@ spec:
         [
           "getJiraIssue",
           "searchJiraIssuesUsingJql",
-          "getConfluencePage",
-          "searchConfluenceUsingCql",
-          "createConfluencePage",
-          "updateConfluencePage"
+          "getConfluenceContent",
+          "searchConfluence",
+          "createConfluenceContent",
+          "updateConfluenceContent"
         ]
-      confirm: [ "createConfluencePage", "updateConfluencePage" ]
+      confirm: [ "createConfluenceContent", "updateConfluenceContent" ]
     - server: slack
       tools: [ "conversations_history", "conversations_replies", "chat_post_message" ]
   views: [ programs, task-inbox, slack-summarizer, my-agents, decisions ]

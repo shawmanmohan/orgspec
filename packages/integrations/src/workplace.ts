@@ -49,6 +49,29 @@ export class Slack {
     const res = await this.ops.run('slack.postMessage', { channel, text, threadTs });
     return String(pick(res, 'ts', 'message.ts') ?? '');
   }
+
+  /** The person's current status, so zen mode can put it back afterwards. */
+  async status(): Promise<{ text: string; emoji: string; expiration: number }> {
+    const res = await this.ops.run('slack.getStatus', {});
+    return {
+      text: pick<string>(res, 'profile.status_text', 'status_text') ?? '',
+      emoji: pick<string>(res, 'profile.status_emoji', 'status_emoji') ?? '',
+      expiration: Number(pick(res, 'profile.status_expiration', 'status_expiration') ?? 0),
+    };
+  }
+
+  async setStatus(text: string, emoji = '', expiration = 0): Promise<void> {
+    await this.ops.run('slack.setStatus', { text, emoji, expiration });
+  }
+
+  /** Do Not Disturb for a number of minutes, and ending it early. */
+  async snooze(minutes: number): Promise<void> {
+    await this.ops.run('slack.setSnooze', { minutes });
+  }
+
+  async endSnooze(): Promise<void> {
+    await this.ops.run('slack.endSnooze', {});
+  }
 }
 
 export type CiState = 'queued' | 'running' | 'passed' | 'failed' | 'cancelled' | 'unknown';

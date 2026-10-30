@@ -111,4 +111,20 @@ ${JSON_ONLY}`,
 
 ${JSON_ONLY}`,
   },
+  verifier: {
+    description: 'Judges a branch diff against each scenario of the change it implements (advisory)',
+    model: 'sonnet',
+    tools: ['Read', 'Grep', 'Glob'],
+    body: `You check whether a code change implements the scenarios in its spec. For each scenario ID you are given, decide "met", "partial", "not-met" or "unclear" from the diff and the files you can read. Cite the files and, where possible, the test that exercises the scenario. Judge behaviour, not style. Never invent scenario IDs. Your verdict is advice for the author; it does not block anything. ${UNTRUSTED}
+
+${JSON_ONLY}`,
+  },
+  'zen-planner': {
+    description: 'Writes one-line reasons for suggested zen focus items',
+    model: 'haiku',
+    tools: [],
+    body: `You are given a short, already-ranked list of work items for one person. For each item, write one short reason (under 12 words) why it deserves focus now, using only the facts given: due dates, who is blocked, ticket status. Do not reorder or add items. ${UNTRUSTED}
+
+${JSON_ONLY}`,
+  },
 };

@@ -76,7 +76,7 @@ export const DEFAULT_OPERATIONS: Record<string, ToolMapping> = {
     args: { cloudId: '$cloudId', issueIdOrKey: '$key', fields: '$fields' },
   },
   'jira.addComment': {
-    tool: 'atlassian__addCommentToJiraIssue',
+    tool: 'atlassian__addOrEditJiraIssueComment',
     args: { cloudId: '$cloudId', issueIdOrKey: '$key', commentBody: '$body' },
   },
   'jira.transition': {
@@ -95,15 +95,15 @@ export const DEFAULT_OPERATIONS: Record<string, ToolMapping> = {
     },
   },
   'confluence.getPage': {
-    tool: 'atlassian__getConfluencePage',
+    tool: 'atlassian__getConfluenceContent',
     args: { cloudId: '$cloudId', pageId: '$pageId', contentFormat: 'storage' },
   },
   'confluence.search': {
-    tool: 'atlassian__searchConfluenceUsingCql',
+    tool: 'atlassian__searchConfluence',
     args: { cloudId: '$cloudId', cql: '$cql', limit: '$limit' },
   },
   'confluence.createPage': {
-    tool: 'atlassian__createConfluencePage',
+    tool: 'atlassian__createConfluenceContent',
     args: {
       cloudId: '$cloudId',
       spaceId: '$spaceId',
@@ -114,7 +114,7 @@ export const DEFAULT_OPERATIONS: Record<string, ToolMapping> = {
     },
   },
   'confluence.updatePage': {
-    tool: 'atlassian__updateConfluencePage',
+    tool: 'atlassian__updateConfluenceContent',
     args: {
       cloudId: '$cloudId',
       pageId: '$pageId',
@@ -125,11 +125,11 @@ export const DEFAULT_OPERATIONS: Record<string, ToolMapping> = {
     },
   },
   'confluence.addComment': {
-    tool: 'atlassian__createConfluenceFooterComment',
+    tool: 'atlassian__createConfluenceComment',
     args: { cloudId: '$cloudId', pageId: '$pageId', body: '$body' },
   },
   'jira.linkIssues': {
-    tool: 'atlassian__createIssueLink',
+    tool: 'atlassian__createJiraIssueLink',
     args: { cloudId: '$cloudId', inwardIssue: '$inward', outwardIssue: '$outward', type: '$type' },
   },
   'hr.requestManagerChange': {
@@ -137,11 +137,11 @@ export const DEFAULT_OPERATIONS: Record<string, ToolMapping> = {
     args: { email: '$email', newManagerEmail: '$managerEmail', note: '$note' },
   },
   'confluence.getComments': {
-    tool: 'atlassian__getConfluencePageFooterComments',
+    tool: 'atlassian__listConfluenceComments',
     args: { cloudId: '$cloudId', pageId: '$pageId' },
   },
   'confluence.setRestrictions': {
-    tool: 'atlassian__setConfluencePageRestrictions',
+    tool: 'atlassian__setConfluenceContentRestrictionState',
     args: { cloudId: '$cloudId', pageId: '$pageId', users: '$users' },
   },
   'slack.listConversations': {
@@ -158,6 +158,13 @@ export const DEFAULT_OPERATIONS: Record<string, ToolMapping> = {
     args: { channel: '$channel', text: '$text', thread_ts: '$threadTs' },
   },
   'slack.saved': { tool: 'slack__saved_list', args: {} },
+  'slack.getStatus': { tool: 'slack__users_profile_get', args: {} },
+  'slack.setStatus': {
+    tool: 'slack__users_profile_set',
+    args: { status_text: '$text', status_emoji: '$emoji', status_expiration: '$expiration' },
+  },
+  'slack.setSnooze': { tool: 'slack__dnd_set_snooze', args: { num_minutes: '$minutes' } },
+  'slack.endSnooze': { tool: 'slack__dnd_end_snooze', args: {} },
   'slack.userInfo': { tool: 'slack__users_info', args: { user: '$user' } },
   'ci.listRuns': {
     tool: 'ci__list_runs',
@@ -213,6 +220,84 @@ export class Operations {
       throw new IntegrationError(op, typeof value === 'string' ? value : JSON.stringify(value).slice(0, 500));
     return value;
   }
+}
+
+/** An upstream tool as `tools/list` describes it; only the parts the mapping check needs. */
+export interface ToolSpec {
+  name: string;
+  inputSchema?: { [k: string]: unknown };
+}
+
+export interface MappingIssue {
+  operation: string;
+  tool: string;
+  problem: 'missing-tool' | 'unknown-args' | 'missing-required';
+  detail: string;
+}
+
+const words = (name: string): Set<string> =>
+  new Set(
+    name
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length > 2),
+  );
+
+/** The upstream tool whose name shares the most words with `wanted`, if any share at least two. */
+export function closestTool(wanted: string, tools: readonly ToolSpec[]): string | undefined {
+  const w = words(wanted);
+  let best: { name: string; score: number } | undefined;
+  for (const t of tools) {
+    const tw = words(t.name);
+    const score = [...w].filter((x) => tw.has(x)).length / Math.max(w.size, tw.size);
+    if ([...w].filter((x) => tw.has(x)).length >= 2 && (!best || score > best.score)) best = { name: t.name, score };
+  }
+  return best?.name;
+}
+
+/**
+ * Checks every operation mapped to `server` against that server's live `tools/list`: the tool exists,
+ * each mapped argument is in its input schema, and every required argument is mapped.
+ */
+export function checkMappings(
+  ops: Record<string, ToolMapping>,
+  server: string,
+  tools: readonly ToolSpec[],
+): MappingIssue[] {
+  const byName = new Map(tools.map((t) => [t.name, t]));
+  const issues: MappingIssue[] = [];
+  for (const [operation, m] of Object.entries(ops)) {
+    if (!m.tool.startsWith(`${server}__`)) continue;
+    const name = m.tool.slice(server.length + 2);
+    const tool = byName.get(name);
+    if (!tool) {
+      const near = closestTool(name, tools);
+      issues.push({
+        operation,
+        tool: name,
+        problem: 'missing-tool',
+        detail: near ? `not offered by ${server}; closest is ${near}` : `not offered by ${server}`,
+      });
+      continue;
+    }
+    const schema = tool.inputSchema ?? {};
+    const props = schema.properties as Record<string, unknown> | undefined;
+    if (props && schema.additionalProperties !== true) {
+      const unknown = Object.keys(m.args).filter((k) => !(k in props));
+      if (unknown.length)
+        issues.push({
+          operation,
+          tool: name,
+          problem: 'unknown-args',
+          detail: `${unknown.join(', ')} not in its schema (it takes ${Object.keys(props).join(', ') || 'nothing'})`,
+        });
+    }
+    const missing = ((schema.required as string[] | undefined) ?? []).filter((k) => !(k in m.args));
+    if (missing.length)
+      issues.push({ operation, tool: name, problem: 'missing-required', detail: `needs ${missing.join(', ')}` });
+  }
+  return issues;
 }
 
 /** Reads the first defined value among dotted paths; tolerant of the shape differences between MCP servers. */

@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import {
   type AppContext,
+  activeZen,
   addAgendaItem,
   addApproval,
   addWaiver,
@@ -10,11 +11,15 @@ import {
   adminPublish,
   adminRollback,
   bundleVersions,
+  checkIntegration,
   cleanupPacket,
   completeReminder,
   createPacket,
+  describeReport,
   doctor,
+  endZen,
   executePending,
+  extendZen,
   findReport as findReportIn,
   indexDecisions,
   installService,
@@ -29,8 +34,10 @@ import {
   planTasks,
   prepareBrief,
   privateNotes,
+  rankFocus,
   readDaemonInfo,
   renderManagedSettings,
+  renderVerificationMd,
   reviewDesign,
   reviewPrd,
   rolesDirectory,
@@ -41,13 +48,17 @@ import {
   savePrivateNote,
   scoreCachedIssues,
   searchDecisions,
+  setFocusDone,
   setup,
   snoozeReminder,
   startDaemon,
+  startZen,
+  suggestFocus,
   summarizeSlack,
   syncDmInbox,
   syncJobs,
   updateInboxTask,
+  verifyChange,
 } from '@orgspec/app';
 import { GATEWAY_CONFIG, interactiveCommand, openTerminal } from '@orgspec/claude';
 import { describeDiff, diffRules, loadBundle } from '@orgspec/constitution';
@@ -177,7 +188,56 @@ export function registerAppCommands(program: Command, h: CommandHelpers): void {
         (u) => openBrowser(c, u.toString()),
         () => waitForAuthCode(),
       );
-      emit({ server, tools }, () => `Connected to ${server} (${tools} tools).`);
+      const report = await checkIntegration(c, server);
+      const problems = describeReport(report);
+      emit({ server, tools, report }, () =>
+        [
+          `Connected to ${server} (${tools} tools).`,
+          problems.length
+            ? `${problems.length} mapping problem(s) to fix in integrations.yaml:\n  ${problems.join('\n  ')}`
+            : `All ${report.operations} OrgSpec operation(s) for ${server} match its tools.`,
+        ].join('\n'),
+      );
+    });
+
+  program
+    .command('integrations')
+    .description("check OrgSpec's tool mappings against each MCP server's live tool list")
+    .command('check')
+    .argument('[servers...]', 'servers to check (default: all in integrations.yaml)')
+    .action(async (servers: string[]) => {
+      const c = ctx();
+      const names = servers.length ? servers : Object.keys(c.config()?.integrations.servers ?? {});
+      const reports: (Awaited<ReturnType<typeof checkIntegration>> | { server: string; error: string })[] = [];
+      for (const s of names) {
+        try {
+          reports.push(await checkIntegration(c, s));
+        } catch (e) {
+          reports.push({ server: s, error: (e as Error).message });
+        }
+      }
+      const bad = reports
+        .filter((r) => 'error' in r || describeReport(r).length > 0)
+        .map((r) =>
+          error(
+            'integration_mapping',
+            'error' in r ? `${r.server}: ${r.error}` : `${r.server}: ${describeReport(r).length} mapping problem(s)`,
+          ),
+        );
+      emit(
+        { reports },
+        () =>
+          reports
+            .map((r) => {
+              if ('error' in r) return `✗ ${r.server}: ${r.error}`;
+              const p = describeReport(r);
+              return p.length
+                ? `✗ ${r.server} (${r.tools} tools)\n  ${p.join('\n  ')}`
+                : `✓ ${r.server}: ${r.operations} operation(s) match ${r.tools} tools`;
+            })
+            .join('\n'),
+        bad,
+      );
     });
 
   // ---------- ticket packets ----------
@@ -485,6 +545,83 @@ export function registerAppCommands(program: Command, h: CommandHelpers): void {
       const r = await planTasks(ctx(), h.workspace(), id, o);
       emit(r, () => `Wrote ${r.count} task group(s) to ${r.file}`);
     });
+  program
+    .command('verify')
+    .description('advisory check of the branch diff against the change’s scenarios (claude -p, never blocks)')
+    .argument('<change>')
+    .option('--base <ref>', 'ref the PR merges into', 'origin/main')
+    .action(async (id: string, o: { base: string }) => {
+      const v = await verifyChange(ctx(), h.workspace(), id, { base: o.base });
+      emit({ ...v, markdown: renderVerificationMd(v) }, () => renderVerificationMd(v));
+    });
+
+  // ---------- zen mode ----------
+  const zen = program.command('zen').description('zen mode: a private focus session on this machine');
+  const showZen = (s: Awaited<ReturnType<typeof activeZen>>) =>
+    s
+      ? [
+          `Zen until ${new Date(s.endsAt).toTimeString().slice(0, 5)} · ${s.focus.filter((f) => f.done).length} of ${s.focus.length} done`,
+          ...s.focus.map((f) => `  ${f.done ? '✓' : '·'} ${f.id}  ${f.title}`),
+        ].join('\n')
+      : 'No zen session. Start one with: orgspec zen start';
+  zen.command('status', { isDefault: true }).action(async () => {
+    const s = await activeZen(ctx());
+    emit({ session: s ?? null }, () => showZen(s));
+  });
+  zen
+    .command('suggest')
+    .description('the focus items zen would suggest now')
+    .action(async () => {
+      const f = await suggestFocus(ctx());
+      emit({ focus: f }, () =>
+        f.length ? f.map((x, n) => `${n + 1}. ${x.title}\n   ${x.reason} (${x.id})`).join('\n') : 'Nothing to suggest.',
+      );
+    });
+  zen
+    .command('start')
+    .option('--minutes <n>', 'session length (capped by the org maximum)')
+    .option('--item <id>', 'focus item ID from `orgspec zen suggest` (repeatable, up to 3)', list)
+    .option('--freeze', 'stop your other agents now and resume them at the end')
+    .option('--no-slack-status', 'leave your Slack status and Do Not Disturb alone')
+    .option('--auto-reply', 'answer DMs once per conversation')
+    .action(
+      async (o: { minutes?: string; item?: string[]; freeze?: boolean; slackStatus: boolean; autoReply?: boolean }) => {
+        const c = ctx();
+        let focus: Awaited<ReturnType<typeof suggestFocus>> | undefined;
+        if (o.item?.length) {
+          const all = await rankFocus(c);
+          focus = o.item.flatMap((id) => all.find((f) => f.id === id) ?? []);
+          if (!focus.length) throw new Error('None of those items are in your ranked list; see orgspec zen suggest');
+        }
+        const s = await startZen(c, {
+          ...(focus ? { focus } : {}),
+          ...(o.minutes ? { minutes: Number(o.minutes) } : {}),
+          freeze: Boolean(o.freeze),
+          slackStatus: o.slackStatus,
+          ...(o.autoReply ? { autoReply: true } : {}),
+        });
+        emit({ session: s }, () => showZen(s));
+      },
+    );
+  zen
+    .command('done')
+    .argument('<id>', 'focus item ID')
+    .action(async (id: string) => {
+      const r = await setFocusDone(ctx(), id);
+      emit({ ...r }, () => (r.ended ? `All focus items done; session ended.\n${r.ended.digest}` : showZen(r.session)));
+    });
+  zen
+    .command('extend')
+    .argument('[minutes]', 'minutes to add', '30')
+    .action(async (m: string) => {
+      const s = await extendZen(ctx(), Number(m));
+      emit({ session: s }, () => showZen(s));
+    });
+  zen.command('end').action(async () => {
+    const r = await endZen(ctx());
+    emit({ ...r }, () => r.digest);
+  });
+
   program
     .command('findings')
     .description('open review findings')

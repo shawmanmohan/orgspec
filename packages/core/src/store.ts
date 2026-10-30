@@ -129,4 +129,17 @@ create table oneonone_actions (
 create index oneonone_actions_report on oneonone_actions(report, state);
 `,
   },
+  {
+    version: 3,
+    sql: `
+create table zen_sessions (
+  id text primary key, started_at text not null, ends_at text not null, ended_at text,
+  payload text not null
+);
+create table held_items (
+  id text primary key, session text not null, kind text not null, payload text not null, created_at text not null
+);
+create index held_items_session on held_items(session);
+`,
+  },
 ];

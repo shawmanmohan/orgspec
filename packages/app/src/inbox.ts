@@ -57,11 +57,15 @@ const groupName = (ctx: AppContext, key: string) =>
  * ones need something from this person, and stores the tasks encrypted in the private DB. Message text
  * never leaves this machine except to the local `claude -p` run.
  */
-export async function syncDmInbox(
-  ctx: AppContext,
-): Promise<{ conversations: number; messages: number; tasks: number }> {
+export async function syncDmInbox(ctx: AppContext): Promise<{
+  conversations: number;
+  messages: number;
+  tasks: number;
+  /** New messages from other people, by conversation (zen mode's auto-reply uses these). */
+  fromOthers: { conversation: string; user?: string }[];
+}> {
   const s = ctx.settings;
-  if (!s.dmInbox.enabled) return { conversations: 0, messages: 0, tasks: 0 };
+  if (!s.dmInbox.enabled) return { conversations: 0, messages: 0, tasks: 0, fromOthers: [] };
   const w = ctx.workplace();
   const db = ctx.privateDb();
   const key = await ctx.key();
@@ -184,7 +188,14 @@ excerpt: a short quote of the message. why: one short reason for the priority. p
   const up = db.prepare('insert or replace into inbox_cursor (conversation, last_ts) values (?, ?)');
   for (const [c, ts] of cursors) up.run(c, ts);
   for (const [c, ts] of myReplies) up.run(`${REPLIED}${c}`, ts);
-  return { conversations: convos.length, messages: fresh.length + saved.length, tasks: added };
+  const fromOthers = [
+    ...new Map(
+      fresh
+        .filter((m) => !m.mine)
+        .map((m) => [m.channel, { conversation: m.channel, ...(m.user ? { user: m.user } : {}) }]),
+    ).values(),
+  ];
+  return { conversations: convos.length, messages: fresh.length + saved.length, tasks: added, fromOthers };
 }
 
 const stripMeta = (t: InboxTask) => {

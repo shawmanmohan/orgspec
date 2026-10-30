@@ -126,7 +126,7 @@ describe('orgspec end to end', () => {
     const connector = memoryConnector({
       atlassian: {
         tools: [
-          { name: 'getConfluencePage', inputSchema: { type: 'object' } },
+          { name: 'getConfluenceContent', inputSchema: { type: 'object' } },
           { name: 'getJiraIssue', inputSchema: { type: 'object' } },
         ],
         handle: (tool) =>

@@ -1,0 +1,9 @@
+# Org limits for zen mode. Each person picks their own length and Slack options in Settings.
+# Incidents and on-call pages always break through; this file cannot turn that off.
+maxMinutes: 120
+# Focus suggestions follow this order, then each person's own ranking.
+priorityOrder: [incident, security, blocking-others, due-today, current-work]
+# Someone waiting on you this many hours shows as a quiet "waiting on you" line.
+blockerHours: 2
+# Extra reminder kinds that reach people during a session.
+breakThrough: []

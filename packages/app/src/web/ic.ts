@@ -3,8 +3,44 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { AppContext } from '../context.js';
 import { addMyAgendaItem, addMyContext, myEvidence } from '../evidence.js';
 import { createPacket, listPackets } from '../packet.js';
+import { findChange, lastVerification, renderVerificationMd, type Verdict, verifyChange } from '../verify.js';
 import { cleanLogs, myIssues, mySessions, specState, specSummary, ticketDetail } from '../work.js';
 import { ago, button, card, day, esc, freshness, heading, layout, pill, table, when } from './ui.js';
+
+const VERDICT_PILL: Record<Verdict, '' | 'ok' | 'warn' | 'bad'> = {
+  met: 'ok',
+  partial: 'warn',
+  'not-met': 'bad',
+  unclear: '',
+};
+
+/** "Check against the spec · advisory": the last verifier run for this ticket's change, and a button to run it. */
+function verifierCard(ctx: AppContext, key: string, changeId?: string): string {
+  if (!changeId)
+    return card(
+      'Check against the spec · advisory',
+      '<p class="small muted" style="margin:0">No change folder with scenarios for this ticket on this machine, so there is nothing to check.</p>',
+    );
+  const v = lastVerification(ctx, changeId);
+  const run = button(v ? 'Run again' : 'Run verifier', 'POST', `/api/tickets/${key}/verify`, {}, { ghost: true });
+  const intro =
+    '<p class="small muted" style="margin:0">Runs on this machine before you open or update the PR: an agent reads the branch diff and judges each scenario in the spec. The result goes into the PR description. Only the deterministic trace in the CI check can block a merge.</p>';
+  if (!v) return card('Check against the spec · advisory', `${intro}<div class="row">${run}</div>`);
+  return card(
+    'Check against the spec · advisory',
+    `${intro}<p style="margin:0">${esc(v.summary)} <span class="small muted">· ${esc(ago(v.ranAt))} against <code>${esc(v.base)}</code></span></p>
+${table(
+  ['Scenario', 'Verdict', 'Evidence'],
+  v.scenarios.map((s) => [
+    `<code>${esc(s.id)}</code>`,
+    pill(s.verdict, VERDICT_PILL[s.verdict]),
+    `${esc(s.evidence)}${s.files.length ? `<br><span class="small muted">${s.files.map(esc).join(', ')}</span>` : ''}`,
+  ]),
+)}
+<details><summary class="small">Markdown for the PR description</summary><pre style="white-space:pre-wrap;font-size:12px">${esc(renderVerificationMd(v))}</pre></details>
+<div class="row">${run}</div>`,
+  );
+}
 
 const STATE_LABEL = {
   'needs-input': ['Needs input', 'warn'],
@@ -20,6 +56,12 @@ export function registerIcRoutes(app: FastifyInstance, ctx: AppContext) {
 
   // ---- APIs ----
   app.get('/api/work', async () => myIssues(ctx));
+  app.post('/api/tickets/:key/verify', async (req: FastifyRequest<{ Params: { key: string } }>) => {
+    const found = findChange(ctx, req.params.key);
+    if (!found)
+      throw Object.assign(new Error(`No change folder for ${req.params.key} on this machine`), { statusCode: 404 });
+    return verifyChange(ctx, found.ws, found.changeId);
+  });
   app.get('/api/agents', async () => mySessions(ctx));
   app.get('/api/agents/:id/logs', async (req: FastifyRequest<{ Params: { id: string } }>) => ({
     lines: cleanLogs(await ctx.sessions.logs(req.params.id), 40),
@@ -177,6 +219,7 @@ ${t.slack.map((s) => `<div><span class="k">Slack</span> Confirmed summary: ${esc
 ${specs.map((s) => `<div><span class="k">Spec</span> <span class="mono">${esc(s.capability)}</span> · ${s.requirements} requirements, ${s.scenarios} scenarios</div>`).join('')}
 ${!t.decisions.length && !t.slack.length && !specs.length ? '<p class="muted" style="margin:0">No decisions, Slack summaries or specs matched yet.</p>' : ''}`,
 )}
+${verifierCard(ctx, key, t.spec.changeId)}
 ${card(`What the agent may do at tier ${tier}`, `<ul class="clean">${t.may.map((m) => `<li class="ok">✓ <span style="color:var(--fg)">${esc(m)}</span></li>`).join('')}${t.mayNot.map((m) => `<li class="bad">✕ <span style="color:var(--fg)">${esc(m)}</span></li>`).join('')}</ul><p class="small muted" style="margin:0">Enforced by hooks on your machine, then by branch protection and the CI check.${ctx.bundle().bundle ? ` Bundle ${esc(ctx.bundle().bundle?.manifest.version)}.` : ''}</p>`)}
 </div><div class="side">
 <section class="card focus"><h2>Send to agent</h2>

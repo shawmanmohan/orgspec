@@ -72,6 +72,7 @@ export async function roster(ctx: AppContext): Promise<RosterEntry[]> {
   const w = ctx.workplace();
   const reports = await w.hr.reports(me);
   ctx.db().prepare("insert or replace into kv (key, value) values ('hr:reports', ?)").run(JSON.stringify(reports));
+  purgeFormerReports(ctx, reports);
   const now = new Date();
   const events = await w.calendar
     .events(now.toISOString(), new Date(now.getTime() + 21 * 86_400_000).toISOString(), '1:1')
@@ -100,6 +101,38 @@ export async function roster(ctx: AppContext): Promise<RosterEntry[]> {
       ...(brief ? { briefAt: brief.created_at } : {}),
     };
   });
+}
+
+/**
+ * When the HR directory shows a manager change (the report has moved, or is no longer listed), the
+ * former manager's briefs, private notes and agreed actions about that person are deleted from this
+ * machine. Nothing is handed over: the new manager's machine builds fresh briefs from the same sources.
+ */
+export function purgeFormerReports(
+  ctx: AppContext,
+  reports: readonly { email: string; moveOn?: string }[],
+  now = new Date(),
+): string[] {
+  const day = now.toISOString().slice(0, 10);
+  const current = new Set(
+    reports.filter((r) => !r.moveOn || r.moveOn.slice(0, 10) > day).map((r) => r.email.toLowerCase()),
+  );
+  const pdb = ctx.privateDb();
+  const known = new Set(
+    [
+      ...(pdb.prepare('select distinct report as e from briefs').all() as { e: string }[]),
+      ...(pdb.prepare('select distinct report as e from oneonone_actions').all() as { e: string }[]),
+      ...(pdb.prepare("select distinct subject as e from notes where subject like '%@%'").all() as { e: string }[]),
+    ].map((r) => r.e),
+  );
+  const gone = [...known].filter((e) => !current.has(e.toLowerCase()));
+  for (const e of gone) {
+    pdb.prepare('delete from briefs where report = ?').run(e);
+    pdb.prepare('delete from oneonone_actions where report = ?').run(e);
+    pdb.prepare('delete from notes where subject = ?').run(e);
+    ctx.db().prepare('delete from kv where key in (?, ?)').run(`oneonone:${e}`, `cadence:${e}`);
+  }
+  return gone;
 }
 
 /** One report, checked against the HR directory: access to someone else's briefs ends when they move. */

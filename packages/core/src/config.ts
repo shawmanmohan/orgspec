@@ -174,6 +174,20 @@ export const WaiverSchema = z.object({
 });
 export type Waiver = z.infer<typeof WaiverSchema>;
 
+/** Org limits for zen mode (`orgspec-config/zen.yaml`). Incident break-through cannot be turned off. */
+export const ZenConfigSchema = z.object({
+  maxMinutes: z.number().int().min(15).max(480).default(120),
+  /** Focus suggestion order: categories first, then each person's ranking. */
+  priorityOrder: z
+    .array(z.enum(['incident', 'security', 'blocking-others', 'due-today', 'current-work']))
+    .default(['incident', 'security', 'blocking-others', 'due-today', 'current-work']),
+  /** Hours someone has waited on you before a quiet "waiting on you" line appears. */
+  blockerHours: z.number().min(0.5).max(48).default(2),
+  /** Reminder kinds that always break through, besides incidents and on-call pages. */
+  breakThrough: z.array(z.string()).default([]),
+});
+export type ZenConfig = z.infer<typeof ZenConfigSchema>;
+
 export interface OrgConfig {
   dir: string;
   personas: Persona[];
@@ -181,6 +195,7 @@ export interface OrgConfig {
   sync: SyncConfig & { sources: Record<string, SyncSource> };
   integrations: Integrations;
   waivers: Waiver[];
+  zen: ZenConfig;
   diagnostics: Diagnostic[];
 }
 
@@ -230,6 +245,9 @@ export function loadOrgConfig(dir: string): OrgConfig {
   const integrations =
     (exists(intFile) ? parseFile(intFile, IntegrationsSchema, diagnostics) : undefined) ?? IntegrationsSchema.parse({});
   const waivers = yamlFiles(join(dir, 'waivers')).flatMap((f) => parseFile(f, WaiverSchema, diagnostics) ?? []);
+  const zenFile = join(dir, 'zen.yaml');
+  const zen =
+    (exists(zenFile) ? parseFile(zenFile, ZenConfigSchema, diagnostics) : undefined) ?? ZenConfigSchema.parse({});
 
   const ids = new Set<string>();
   for (const p of personas) {
@@ -244,6 +262,7 @@ export function loadOrgConfig(dir: string): OrgConfig {
     sync: { ...sync, sources: { ...DEFAULT_SYNC, ...sync.sources } },
     integrations,
     waivers,
+    zen,
     diagnostics,
   };
 }

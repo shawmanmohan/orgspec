@@ -97,7 +97,7 @@ A single-file executable is also available. It bundles Node, so it needs nothing
    orgspec setup --config acme/orgspec-config --email you@acme.io
    ```
 
-2. **Connect the MCP servers** your organisation uses. This runs each server's OAuth sign-in:
+2. **Connect the MCP servers** your organisation uses. This runs each server's OAuth sign-in, then checks OrgSpec's tool mappings against the server's live tool list. For Atlassian it also prints the `cloudId` that `integrations.yaml` needs:
 
    ```bash
    orgspec connect atlassian
@@ -156,6 +156,7 @@ servers:
   calendar:  { transport: stdio, command: orgspec-demo-workplace, args: [calendar,  /tmp/demo-state.json] }
   slack:     { transport: stdio, command: orgspec-demo-workplace, args: [slack,     /tmp/demo-state.json] }
   ci:        { transport: stdio, command: orgspec-demo-workplace, args: [ci,        /tmp/demo-state.json] }
+constants: { cloudId: demo-cloud }
 ```
 
 The example config is in the installed package under `examples/orgspec-config`. You can find the package folder with `npm root -g`.
@@ -257,8 +258,8 @@ The checkpoint and restore hooks save the session's progress to the ticket, so a
 
 | Area | Screens |
 | --- | --- |
-| Everyone | Choose your workspace · Settings and privacy · Approvals · Reminders · Task inbox (send to Jira) · Slack summarizer · Decisions (browse and record) · My agents |
-| Engineer | My work · Ticket (send to agent) · My 1:1 evidence |
+| Everyone | Choose your workspace · Settings and privacy · Approvals · Reminders · Task inbox (send to Jira) · Slack summarizer · Decisions (browse and record) · My agents · Zen (start and session) |
+| Engineer | My work · Ticket (send to agent, check against the spec) · My 1:1 evidence |
 | Engineering manager | Review queue · PRD review · Task breakdown to Jira · Team & 1:1s · 1:1 prep |
 | Project manager | Programs · Program detail with nudges · Share status update |
 | Admin mode | Sources & compile · Bundle review · Waivers · Personas · Sync |
@@ -276,7 +277,13 @@ What each screen does:
 - **Team & 1:1s, 1:1 prep and My 1:1 evidence:**
   - Briefs come from Jira, pull requests, allowlisted work channels and the career framework.
   - Notes are stored encrypted on your machine.
-  - When a report moves teams, the manager's access ends on the move date.
+  - When a report moves teams, the manager's access ends on the move date, and the former manager's briefs, notes and agreed actions about that person are deleted from their machine.
+- **Check against the spec (ticket page, `orgspec verify`):** before you open or update a PR, a `claude -p` verifier judges the branch diff against each scenario the change adds or modifies, and gives you a Markdown section for the PR description. It is advisory; only the deterministic trace in `orgspec check` can block a merge.
+- **Zen mode:**
+  - A private focus session of up to three items, suggested from incidents, security work, people blocked on you, things due today and your current tickets, in the org's order from `zen.yaml`.
+  - Reminders wait for one end-of-session digest, except incidents and on-call pages.
+  - It sets your Slack status and Do Not Disturb and restores them afterwards. It can also auto-reply to DMs once per conversation and freeze your other agents until the end.
+  - Sessions stay on your machine and are never a metric.
 - **Programs:**
   - Risk scores are deterministic: dependencies, a resampled-throughput forecast, activity, review wait and scope.
   - Scores never judge people.
@@ -292,9 +299,10 @@ Every command accepts `--json`, which prints exactly one JSON document on stdout
 | Area | Commands |
 | --- | --- |
 | Specs | `init`, `new <JIRA>`, `status`, `show`, `list`, `validate [--strict]`, `rebase`, `archive [--ci]`, `trace` |
-| Setup | `setup`, `doctor`, `managed-settings`, `connect <mcp-server>`, `service install` |
+| Setup | `setup`, `doctor`, `managed-settings`, `connect <mcp-server>`, `integrations check [server…]`, `service install` |
 | Work | `packet <JIRA>`, `packets`, `resume`, `cleanup`, `session list\|logs\|attach\|stop\|respawn\|rm` |
-| Review | `review prd <pageId>`, `review design <change>`, `plan <change>`, `findings`, `approve <change> <artifact>` |
+| Review | `review prd <pageId>`, `review design <change>`, `plan <change>`, `verify <change>`, `findings`, `approve <change> <artifact>` |
+| Focus | `zen [status]`, `zen suggest`, `zen start [--minutes] [--item] [--freeze] [--auto-reply]`, `zen done <id>`, `zen extend`, `zen end` |
 | CI | `check --base origin/main --config <orgspec-config> --persona engineer` |
 | Knowledge | `decision new\|index\|search` |
 | People | `inbox [sync\|done\|dismiss]`, `summarize <channel>`, `risk`, `1on1 roster\|brief\|agenda\|note\|notes` |
@@ -323,6 +331,7 @@ The organisation's admins keep one git repository. [`examples/orgspec-config`](e
 | `compiled/<persona>/<version>/` | Published bundles: `rules.json`, `checks.json`, `constitution.md`, rubrics and a `manifest.json` with hashes |
 | `integrations.yaml` | MCP servers (stdio or http, OAuth), constants, overrides of the logical operations each tool maps to, and the egress allowlist |
 | `sync.yaml` | Polling intervals for each source |
+| `zen.yaml` | Zen mode limits: maximum length, focus priority order, the "waiting on you" threshold and extra break-through reminder kinds |
 | `jira.yaml` | Gate field IDs, the PRD label and the mapping from teams to projects |
 | `roles.yaml` | Who may approve which artifacts, by tier |
 | `people.yaml` | Team leads, allowlisted evidence channels and HR as the source of reporting lines |
@@ -336,6 +345,14 @@ The organisation's admins keep one git repository. [`examples/orgspec-config`](e
 operations:
   ci.listRuns: { tool: ci__builds_search, args: { project: $repo, branch: $branch } }
 ```
+
+`orgspec integrations check` finds the mappings to fix. For each server it reports:
+- tools the server doesn't offer, with the closest name it does offer
+- arguments that aren't in a tool's input schema
+- required arguments that aren't mapped
+- for Atlassian, whether `constants.cloudId` is one of your sites
+
+`orgspec connect` and `orgspec doctor` run the same check. The defaults follow the Atlassian Rovo MCP server's v2 tool names. Use `https://mcp.atlassian.com/v2/mcp?tools=all`, the flat tool list that Atlassian recommends for gateways. Atlassian publishes tool names but not argument schemas, so run the check once with a real sign-in.
 
 **Compiling the constitution** is done in Admin mode, or from the CLI:
 
