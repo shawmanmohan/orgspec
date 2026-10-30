@@ -89,7 +89,7 @@ export async function notify(ctx: AppContext, title: string, body: string): Prom
  * each in `dm` mode. Delivered reminders stay on the dashboard until done.
  */
 /** Where reminders go: your own Slack DM when Slack is configured and your Slack ID is known, else a desktop notification. */
-async function slackToSelf(ctx: AppContext, text: string): Promise<boolean> {
+export async function slackToSelf(ctx: AppContext, text: string): Promise<boolean> {
   const me = ctx.settings.identity.slackUserId;
   if (!me || !ctx.config()?.integrations.servers.slack) return false;
   try {
@@ -118,6 +118,22 @@ export async function deliverReminders(
   const { mode, digestAt } = ctx.settings.reminders;
   const db = ctx.db();
   const mark = db.prepare('update reminders set delivered_at = ? where id = ?');
+  // During a zen session, reminders wait for the end-of-session digest unless they break through.
+  const zen = await import('./zen.js');
+  const session = await zen.activeZen(ctx, now);
+  if (session) {
+    const cfg = zen.zenConfig(ctx);
+    const urgent = due.filter((r) => zen.breaksThrough(r, cfg));
+    for (const r of due.filter((x) => !urgent.includes(x))) {
+      await zen.holdForDigest(ctx, session.id, { kind: r.kind, title: r.title, ...(r.url ? { url: r.url } : {}) });
+      mark.run(nowIso(), r.id);
+    }
+    for (const r of urgent) {
+      if (!(await slackToSelf(ctx, line(r, o.baseUrl)))) await notify(ctx, 'OrgSpec', r.title);
+      mark.run(nowIso(), r.id);
+    }
+    return due.length;
+  }
   if (mode === 'digest') {
     const hhmm = now.toTimeString().slice(0, 5);
     const today = now.toISOString().slice(0, 10);

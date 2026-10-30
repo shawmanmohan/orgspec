@@ -10,6 +10,7 @@ import { reviewPrdFull } from './prd.js';
 import { programs } from './programs.js';
 import { remind } from './reminders.js';
 import type { SyncJob } from './scheduler.js';
+import { zenAutoReply } from './zen.js';
 
 export function upsertIssues(ctx: AppContext, issues: readonly JiraIssue[]): void {
   const db = ctx.db();
@@ -152,7 +153,8 @@ export function syncJobs(ctx: AppContext): Record<string, SyncJob> {
     'slack.dms': async () => {
       const r = await syncDmInbox(ctx);
       pruneInbox(ctx);
-      return `${r.messages} new message(s), ${r.tasks} task(s)`;
+      const replied = await zenAutoReply(ctx, r.fromOthers);
+      return `${r.messages} new message(s), ${r.tasks} task(s)${replied ? `, ${replied} zen auto-repl${replied === 1 ? 'y' : 'ies'}` : ''}`;
     },
     'github.prs': async () => {
       const login = ctx.settings.identity.githubLogin ?? '@me';

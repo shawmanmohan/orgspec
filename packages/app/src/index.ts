@@ -29,4 +29,6 @@ export * from './setup.js';
 export * from './slack.js';
 export * from './sync.js';
 export * from './team-pages.js';
+export * from './verify.js';
 export * from './work.js';
+export * from './zen.js';

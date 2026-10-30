@@ -336,6 +336,17 @@ const TOOLS = {
       },
     },
     users_info: { schema: obj({ user: str }), run: (_s, a) => ({ user: { id: a.user } }) },
+    users_profile_get: { schema: obj({}), run: (s) => ({ profile: s.status ?? { status_text: '', status_emoji: '', status_expiration: 0 } }) },
+    users_profile_set: {
+      schema: obj({ status_text: str, status_emoji: str, status_expiration: { type: 'number' } }),
+      run: (s, a) => {
+        s.status = { status_text: a.status_text ?? '', status_emoji: a.status_emoji ?? '', status_expiration: a.status_expiration ?? 0 };
+        save(s);
+        return { ok: true, profile: s.status };
+      },
+    },
+    dnd_set_snooze: { schema: obj({ num_minutes: { type: 'number' } }, ['num_minutes']), run: (s, a) => ((s.dnd = { minutes: a.num_minutes, at: new Date().toISOString() }), save(s), { ok: true, snooze_enabled: true }) },
+    dnd_end_snooze: { schema: obj({}), run: (s) => ((s.dnd = null), save(s), { ok: true, snooze_enabled: false }) },
     saved_list: { schema: obj({}), run: (s) => ({ items: s.saved.map((x) => ({ channel: x.channel, message: s.channels[x.channel]?.find((m) => m.ts === x.ts) })) }) },
   },
   ci: {

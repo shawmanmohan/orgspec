@@ -158,6 +158,13 @@ export const DEFAULT_OPERATIONS: Record<string, ToolMapping> = {
     args: { channel: '$channel', text: '$text', thread_ts: '$threadTs' },
   },
   'slack.saved': { tool: 'slack__saved_list', args: {} },
+  'slack.getStatus': { tool: 'slack__users_profile_get', args: {} },
+  'slack.setStatus': {
+    tool: 'slack__users_profile_set',
+    args: { status_text: '$text', status_emoji: '$emoji', status_expiration: '$expiration' },
+  },
+  'slack.setSnooze': { tool: 'slack__dnd_set_snooze', args: { num_minutes: '$minutes' } },
+  'slack.endSnooze': { tool: 'slack__dnd_end_snooze', args: {} },
   'slack.userInfo': { tool: 'slack__users_info', args: { user: '$user' } },
   'ci.listRuns': {
     tool: 'ci__list_runs',

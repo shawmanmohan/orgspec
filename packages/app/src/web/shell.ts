@@ -4,6 +4,7 @@ import { pendingActions } from '@orgspec/gateway';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { AppContext } from '../context.js';
 import { executePending } from '../risk.js';
+import { zenEndsAt } from '../zen.js';
 import { button, card, esc, heading, layout, personaNav, pill, table } from './ui.js';
 
 interface ConnectionStatus {
@@ -50,6 +51,8 @@ export function registerShellRoutes(app: FastifyInstance, ctx: AppContext, deps:
 
   app.get('/', async (_req, reply) => {
     if (!ctx.persona()) return reply.redirect('/workspace');
+    // During a zen session the dashboard opens on the focus view.
+    if (zenEndsAt(ctx)) return reply.redirect('/zen');
     return reply.redirect(personaNav(ctx)[0]?.href ?? '/work');
   });
 
@@ -163,6 +166,29 @@ ${card(
     }));
     return s;
   });
+  app.put(
+    '/api/settings/zen',
+    async (
+      req: FastifyRequest<{
+        Body: { defaultMinutes?: number; slackStatus?: boolean; autoReply?: boolean; allowlist?: string[] };
+      }>,
+    ) => {
+      const b = req.body ?? {};
+      const max = ctx.config()?.zen.maxMinutes ?? 120;
+      return ctx.updateSettings((x) => ({
+        ...x,
+        zen: {
+          ...x.zen,
+          ...(typeof b.defaultMinutes === 'number' && Number.isFinite(b.defaultMinutes)
+            ? { defaultMinutes: Math.min(Math.max(15, Math.round(b.defaultMinutes)), max) }
+            : {}),
+          ...(typeof b.slackStatus === 'boolean' ? { slackStatus: b.slackStatus } : {}),
+          ...(typeof b.autoReply === 'boolean' ? { autoReply: b.autoReply } : {}),
+          ...(Array.isArray(b.allowlist) ? { allowlist: b.allowlist.map(String).filter(Boolean) } : {}),
+        },
+      })).zen;
+    },
+  );
   app.put('/api/settings/interval', async (req: FastifyRequest<{ Body: { source: string; every: string } }>) => {
     const { source, every } = req.body;
     const cfg = ctx.config()?.sync.sources[source] ?? DEFAULT_SYNC[source];
@@ -299,6 +325,13 @@ ${card(
 ${s.dmInbox.excluded.length ? `<ul class="clean">${s.dmInbox.excluded.map((c) => `<li class="row"><code>${esc(c)}</code> ${button('Remove', 'PUT', '/api/settings', { excluded: s.dmInbox.excluded.filter((x) => x !== c) }, { ghost: true })}</li>`).join('')}</ul>` : '<p class="small muted" style="margin:0">None.</p>'}
 <div class="row"><input id="exc" placeholder="Conversation or user ID">${button('Add', 'PUT', '/api/settings', { js: `{excluded:${JSON.stringify(s.dmInbox.excluded)}.concat([val('exc')])}` }, { ghost: true })}</div>`,
 )}
+<section class="card" id="zen"><h2>Zen mode</h2>
+<label class="f">Default length (org maximum ${ctx.config()?.zen.maxMinutes ?? 120} min)<input id="zm" type="number" min="15" step="15" value="${s.zen.defaultMinutes}"></label>
+<label class="row"><input type="checkbox" id="zs" ${s.zen.slackStatus ? 'checked' : ''}> Set Slack status and Do Not Disturb</label>
+<label class="row"><input type="checkbox" id="zr" ${s.zen.autoReply ? 'checked' : ''}> Auto-reply to DMs, once per conversation per session</label>
+<label class="f">People who always reach you (work emails or Slack IDs, comma-separated)<input id="za" value="${esc(s.zen.allowlist.join(', '))}"></label>
+${button('Save', 'PUT', '/api/settings/zen', { js: "{defaultMinutes:Number(val('zm')),slackStatus:val('zs'),autoReply:val('zr'),allowlist:val('za').split(',').map(x=>x.trim()).filter(Boolean)}" })}
+<p class="small muted" style="margin:0">Incidents and on-call pages always break through. Sessions stay on this machine and are never a metric.</p></section>
 ${card(
   'Reminders and nudges',
   `<div class="row"><label class="f">Quiet hours from<input id="qs" type="time" value="${esc(s.quietHours.start)}"></label><label class="f">to<input id="qe" type="time" value="${esc(s.quietHours.end)}"></label></div>

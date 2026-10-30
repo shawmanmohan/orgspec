@@ -328,7 +328,12 @@ describe('DM inbox', () => {
       },
     });
     const ctx = makeContext({ jobs, connector, configDir: dir, settings: { identity: { slackUserId: 'U1' } } });
-    expect(await syncDmInbox(ctx)).toEqual({ conversations: 1, messages: 2, tasks: 1 });
+    expect(await syncDmInbox(ctx)).toEqual({
+      conversations: 1,
+      messages: 2,
+      tasks: 1,
+      fromOthers: [{ conversation: 'D1', user: 'U2' }],
+    });
     expect((await listInbox(ctx))[0]?.title).toBe('Review PR');
     const raw = ctx.privateDb().prepare('select payload from inbox_tasks').get() as { payload: string };
     expect(raw.payload).not.toContain('Review PR');
@@ -365,6 +370,7 @@ describe('daemon', () => {
         '/actions',
         '/reminders',
         '/settings',
+        '/zen',
       ]) {
         const r = await fetch(`${d.url}${path}`, { headers: jar });
         expect([path, r.status]).toEqual([path, 200]);

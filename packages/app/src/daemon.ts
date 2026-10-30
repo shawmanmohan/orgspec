@@ -24,6 +24,7 @@ import { registerIcRoutes } from './web/ic.js';
 import { registerPmRoutes } from './web/pm.js';
 import { registerSharedRoutes } from './web/shared.js';
 import { registerShellRoutes } from './web/shell.js';
+import { registerZenRoutes } from './web/zen.js';
 
 export interface DaemonInfo {
   pid: number;
@@ -199,6 +200,7 @@ export async function startDaemon(
   registerPmRoutes(app, ctx);
   registerAdminRoutes(app, ctx);
   registerTeamRoutes(app, ctx);
+  registerZenRoutes(app, ctx);
 
   // A stable port keeps links in Slack reminders and the browser's login cookie working across restarts.
   if (o.port !== undefined) await app.listen({ host: '127.0.0.1', port: o.port });

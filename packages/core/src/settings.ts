@@ -36,6 +36,18 @@ export const UserSettingsSchema = z.object({
   reminders: z
     .object({ mode: z.enum(['digest', 'dm']).default('digest'), digestAt: hhmm.default('09:30') })
     .default({}),
+  /** Zen mode preferences. The org caps the length in orgspec-config/zen.yaml. */
+  zen: z
+    .object({
+      defaultMinutes: z.number().int().min(15).max(480).default(90),
+      /** Set a Slack status and Do Not Disturb for the session. */
+      slackStatus: z.boolean().default(true),
+      /** Answer each DM conversation once per session. */
+      autoReply: z.boolean().default(false),
+      /** People who always reach you: work emails or Slack user IDs. */
+      allowlist: z.array(z.string()).default([]),
+    })
+    .default({}),
   /** Jira projects whose tickets this person follows (PM programs, EM queues). */
   jira: z
     .object({

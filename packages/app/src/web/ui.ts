@@ -1,4 +1,5 @@
 import type { AppContext } from '../context.js';
+import { zenEndsAt } from '../zen.js';
 
 /** Server-rendered dashboard building blocks. Nothing loads from the internet. */
 
@@ -138,9 +139,13 @@ export function layout(ctx: AppContext, path: string, title: string, body: strin
   const chip = o.admin
     ? '<span class="chip">Admin mode</span>'
     : `<a class="chip" href="/workspace">${esc(persona?.metadata.name ?? 'Choose workspace')} ▾</a>`;
+  const zenEnds = o.admin ? undefined : zenEndsAt(ctx);
+  const zenLink = o.admin
+    ? ''
+    : `<a class="chip" href="/zen"${zenEnds ? ' style="background:var(--accent);border-color:var(--accent);color:#fff"' : ''}>${zenEnds ? `Zen until ${esc(new Date(zenEnds).toTimeString().slice(0, 5))}` : 'Zen'}</a>`;
   const right = o.admin
     ? `<a href="/">Exit admin mode</a>`
-    : `<a href="/reminders">Reminders${reminders ? ` <span class="badge" style="background:var(--warn)">${reminders}</span>` : ''}</a><a href="/actions">Approvals${pending ? ` <span class="badge">${pending}</span>` : ''}</a><a href="/settings">Settings</a>`;
+    : `${zenLink}<a href="/reminders">Reminders${reminders ? ` <span class="badge" style="background:var(--warn)">${reminders}</span>` : ''}</a><a href="/actions">Approvals${pending ? ` <span class="badge">${pending}</span>` : ''}</a><a href="/settings">Settings</a>`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} · OrgSpec</title><style>${CSS}</style><script>${JS}</script></head><body class="${o.admin ? 'admin' : ''}">
 <header class="top${o.admin ? ' admin' : ''}"><a class="brand" href="/">OrgSpec</a>${chip}<nav aria-label="Workspace">${navHtml}</nav>
